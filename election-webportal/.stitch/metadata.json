@@ -1,0 +1,76 @@
+{
+  "name": "projects/14178156998324788824",
+  "projectId": "14178156998324788824",
+  "title": "Voting Web Portal Enhancements",
+  "visibility": "PRIVATE",
+  "createTime": "2026-03-10T15:24:45.655803Z",
+  "updateTime": "2026-03-10T15:25:57.600367Z",
+  "projectType": "PROJECT_DESIGN",
+  "origin": "STITCH",
+  "deviceType": "DESKTOP",
+  "designTheme": {
+    "colorMode": "LIGHT",
+    "font": "PUBLIC_SANS",
+    "roundness": "ROUND_EIGHT",
+    "customColor": "#21c45d",
+    "saturation": 2
+  },
+  "screens": {
+    "results": {
+      "id": "eb5cb27f1ca249f095561bf93a6bf8a7",
+      "sourceScreen": "projects/14178156998324788824/screens/eb5cb27f1ca249f095561bf93a6bf8a7",
+      "x": 0,
+      "y": 0,
+      "width": 780,
+      "height": 1768
+    },
+    "parties": {
+      "id": "3b98e43ba62e4d90b0977a753eaf95ad",
+      "sourceScreen": "projects/14178156998324788824/screens/3b98e43ba62e4d90b0977a753eaf95ad",
+      "x": 800,
+      "y": 0,
+      "width": 780,
+      "height": 2386
+    },
+    "ec-parties": {
+      "id": "dca8b243ec8c44e0ad6b17148cbedb14",
+      "sourceScreen": "projects/14178156998324788824/screens/dca8b243ec8c44e0ad6b17148cbedb14",
+      "x": 1600,
+      "y": 0,
+      "width": 780,
+      "height": 2268
+    },
+    "ec-candidates": {
+      "id": "b4d7f5297d0947bab96545ecc71c9f5d",
+      "sourceScreen": "projects/14178156998324788824/screens/b4d7f5297d0947bab96545ecc71c9f5d",
+      "x": 2400,
+      "y": 0,
+      "width": 780,
+      "height": 2500
+    },
+    "ec-ballot": {
+      "id": "efd9dc35f3a4487fb386636c8312a723",
+      "sourceScreen": "projects/14178156998324788824/screens/efd9dc35f3a4487fb386636c8312a723",
+      "x": 3200,
+      "y": 0,
+      "width": 780,
+      "height": 2610
+    },
+    "admin-districts": {
+      "id": "70b10b56a6dc41a7a7de56e970baed1b",
+      "sourceScreen": "projects/14178156998324788824/screens/70b10b56a6dc41a7a7de56e970baed1b",
+      "x": 4000,
+      "y": 0,
+       "width": 780,
+       "height": 2800
+    },
+    "admin-users": {
+      "id": "811ece7690934d3097bffdfaa7818e8e",
+      "sourceScreen": "projects/14178156998324788824/screens/811ece7690934d3097bffdfaa7818e8e",
+      "x": 4800,
+      "y": 0,
+      "width": 780,
+      "height": 2164
+    }
+  }
+}

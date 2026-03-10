@@ -1,0 +1,199 @@
+import React, { useState } from 'react';
+import { BaseLayout } from '../components/BaseLayout';
+import { Badge } from '../components/Badge';
+import { Button } from '../components/Button';
+import { Input } from '../components/Input';
+import { 
+  UserPlus, 
+  Search, 
+  Shield, 
+  Key, 
+  MoreVertical, 
+  User, 
+  Mail, 
+  Clock,
+  AlertCircle,
+  ShieldCheck,
+  ToggleLeft,
+  ToggleRight
+} from 'lucide-react';
+
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Voter' | 'EC Official' | 'Admin';
+  lastLogin: string;
+  active: boolean;
+  avatar: string;
+}
+
+const AdminUsersPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const users: UserData[] = [
+    {
+      id: "1",
+      name: "สมชาย วิรุฬห์ภักดี",
+      email: "somchai.v@election.go.th",
+      role: "Admin",
+      lastLogin: "2 นาทีที่แล้ว",
+      active: true,
+      avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200"
+    },
+    {
+      id: "2",
+      name: "นารีรัตน์ แก้วมณี",
+      email: "nareerat.k@voter.th",
+      role: "Voter",
+      lastLogin: "1 ชั่วโมงที่แล้ว",
+      active: true,
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200"
+    },
+    {
+      id: "3",
+      name: "วิชัย รักชาติ",
+      email: "wichai.r@ec.go.th",
+      role: "EC Official",
+      lastLogin: "3 วันที่แล้ว",
+      active: false,
+      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200"
+    }
+  ];
+
+  return (
+    <BaseLayout role="admin">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header and Stats Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h1 className="text-3xl font-bold text-text-primary">จัดการผู้ใช้งานและสิทธิ</h1>
+            <p className="text-text-secondary">ควบคุมการเข้าถึงและรักษาความปลอดภัยของระบบ</p>
+          </div>
+          
+          <div className="flex gap-4">
+             <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3">
+               <AlertCircle className="text-status-error" size={24} />
+               <div>
+                  <p className="text-xl font-bold text-red-900">12</p>
+                  <p className="text-[10px] text-red-700">พยายามเข้าสู่ระบบล้มเหลว</p>
+               </div>
+             </div>
+             <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-lg flex items-center gap-3">
+               <Key className="text-status-warning" size={24} />
+               <div>
+                  <p className="text-xl font-bold text-yellow-900">5</p>
+                  <p className="text-[10px] text-yellow-700">รหัสผ่านใกล้หมดอายุ</p>
+               </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Action Bar & Filtering */}
+        <div className="bg-white p-4 rounded-lg border border-surface-border shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+             <div className="flex bg-surface-soft p-1 rounded-lg border border-surface-border w-full md:w-auto">
+                {["All", "Voters", "EC Officials", "Admins"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      activeTab === tab 
+                        ? 'bg-white text-text-primary shadow-sm' 
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+             </div>
+             
+             <div className="flex gap-2 w-full md:w-auto">
+               <div className="flex-1 md:w-64">
+                 <Input 
+                   icon={<Search size={18} />}
+                   placeholder="ค้นหาชื่อหรืออีเมล..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   className="!h-10 text-sm"
+                 />
+               </div>
+               <Button variant="authority" className="px-4 py-2 h-10 min-h-0 text-sm flex items-center gap-2">
+                 <UserPlus size={18} />
+                 เพิ่มบัญชี
+               </Button>
+             </div>
+          </div>
+        </div>
+
+        {/* User Table */}
+        <div className="bg-white rounded-lg border border-surface-border shadow-card overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-surface-soft border-b border-surface-border">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase">ข้อมูลผู้ใช้</th>
+                <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase text-center">บทบาท (Role)</th>
+                <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase">การใช้งานล่าสุด</th>
+                <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase text-center">สถานะ</th>
+                <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-border">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border border-surface-border object-cover" />
+                      <div>
+                        <p className="font-bold text-text-primary flex items-center gap-1">
+                          {user.name}
+                          {user.role === 'Admin' && <ShieldCheck size={14} className="text-authority" />}
+                        </p>
+                        <p className="text-xs text-text-secondary flex items-center gap-1">
+                          <Mail size={12} />
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <Badge variant={user.role === 'Admin' ? 'authority' : user.role === 'EC Official' ? 'info' : 'info'}>
+                      {user.role}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">
+                    <div className="flex items-center gap-2">
+                      <Clock size={14} />
+                      {user.lastLogin}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button className={`${user.active ? 'text-status-success' : 'text-text-secondary/30'} hover:scale-110 transition-transform`}>
+                      {user.active ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button className="p-2 text-text-secondary hover:text-authority hover:bg-surface-soft rounded-lg transition-all" title="Reset Password">
+                        <Key size={18} />
+                      </button>
+                      <button className="p-2 text-text-secondary hover:text-authority hover:bg-surface-soft rounded-lg transition-all" title="Permissions">
+                        <Shield size={18} />
+                      </button>
+                      <button className="p-2 text-text-secondary hover:bg-surface-soft rounded-lg">
+                        <MoreVertical size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </BaseLayout>
+  );
+};
+
+export default AdminUsersPage;
