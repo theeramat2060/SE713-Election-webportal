@@ -1,67 +1,33 @@
 import apiClient from './client';
-import type {
-  ApiResponse,
-  PaginatedResponse,
-  Party,
-  CreatePartyPayload,
-  UpdatePartyPayload,
-} from './types';
+import type { ApiResponse, Party, PartyDetails, PartyOverview } from './types';
 
 export const partiesApi = {
   /**
-   * List all parties — GET /parties  (public)
+   * List all parties (basic info) — GET /api/public/parties
    */
   getAll: async (): Promise<Party[]> => {
-    const { data } = await apiClient.get<PaginatedResponse<Party>>('/parties');
-    return data.data;
+    const { data } = await apiClient.get<ApiResponse<Party[]>>('/public/parties');
+    return data.data ?? [];
   },
 
   /**
-   * Get a single party with full candidate list — GET /parties/:id  (public)
+   * Get a party with full candidate list — GET /api/public/parties/:id
    */
-  getById: async (id: string): Promise<Party> => {
-    const { data } = await apiClient.get<ApiResponse<Party>>(`/parties/${id}`);
-    return data.data;
-  },
-
-  /**
-   * Create a party — POST /parties  (ec)
-   */
-  create: async (payload: CreatePartyPayload): Promise<Party> => {
-    const { data } = await apiClient.post<ApiResponse<Party>>('/parties', payload);
-    return data.data;
-  },
-
-  /**
-   * Update a party — PUT /parties/:id  (ec)
-   */
-  update: async (id: string, payload: UpdatePartyPayload): Promise<Party> => {
-    const { data } = await apiClient.put<ApiResponse<Party>>(
-      `/parties/${id}`,
-      payload,
+  getById: async (id: number): Promise<PartyDetails> => {
+    const { data } = await apiClient.get<ApiResponse<PartyDetails>>(
+      `/public/parties/${id}`,
     );
-    return data.data;
+    return data.data!;
   },
 
   /**
-   * Delete a party — DELETE /parties/:id  (ec)
+   * Aggregated seat count per party (only from closed constituencies)
+   * GET /api/public/party-overview
    */
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/parties/${id}`);
-  },
-
-  /**
-   * Upload party logo — POST /parties/:id/logo  (ec)
-   * Sends multipart/form-data; returns the new logo URL.
-   */
-  uploadLogo: async (id: string, file: File): Promise<string> => {
-    const form = new FormData();
-    form.append('logo', file);
-    const { data } = await apiClient.post<ApiResponse<{ logoUrl: string }>>(
-      `/parties/${id}/logo`,
-      form,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
+  getOverview: async (): Promise<PartyOverview> => {
+    const { data } = await apiClient.get<ApiResponse<PartyOverview>>(
+      '/public/party-overview',
     );
-    return data.data.logoUrl;
+    return data.data!;
   },
 };

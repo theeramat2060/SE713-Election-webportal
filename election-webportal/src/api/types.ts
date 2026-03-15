@@ -1,46 +1,63 @@
-// ─── Shared API Response Envelope ───────────────────────────────────────────
+// ─── Shared Response Envelope ────────────────────────────────────────────────
+// All backend responses follow: { success: boolean, data?: T, error?: string | object }
+
+export interface ApiError {
+  message: string;
+  code?: number;
+}
 
 export interface ApiResponse<T> {
   success: boolean;
-  data: T;
-  message?: string;
-}
-
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: T[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-export interface ApiError {
-  success: false;
-  message: string;
-  errors?: Record<string, string[]>;
-  statusCode: number;
+  data?: T;
+  error?: string | ApiError;
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'voter' | 'ec' | 'admin';
+/** Uppercase to match backend enum: user_role { VOTER EC } */
+export type UserRole = 'VOTER' | 'EC';
 
-export interface User {
-  id: string;
+export interface AuthUser {
+  id: string;           // UUID
   nationalId: string;
-  fullName: string;
+  title: string;        // e.g. นาย, นาง, นางสาว
+  firstName: string;
+  lastName: string;
   role: UserRole;
-  districtId?: string;
-  status: 'active' | 'inactive' | 'suspended';
-  createdAt: string;
+  constituencyId?: number;
+  address?: string;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken?: string;
+export interface AuthAdmin {
+  id: number;
+  username: string;
+}
+
+/** Shape returned by login / register endpoints */
+export interface AuthResponse {
+  success: boolean;
+  token?: string;
+  user?: AuthUser;
+  admin?: AuthAdmin;
+  error?: string | ApiError;
+}
+
+/** Specific shape for GET /api/auth/me */
+export interface AuthMeResponse {
+  success: boolean;
+  user?: AuthUser;
+  error?: string | ApiError;
+}
+
+export interface RegisterUserPayload {
+  nationalId: string;   // exactly 13 digits
+  password: string;     // min 6 chars
+  title: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  constituencyId: number;
+  role?: UserRole;      // defaults to 'VOTER' on backend
 }
 
 export interface LoginPayload {
@@ -48,160 +65,125 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface RegisterPayload {
-  nationalId: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  address: string;
-  districtId: string;
+export interface AdminRegisterPayload {
+  username: string;     // 3-50 chars, alphanumeric + _ -
+  password: string;     // min 8 chars, must contain uppercase + number
+}
+
+export interface AdminLoginPayload {
+  username: string;
   password: string;
-  confirmPassword: string;
 }
 
-export interface AuthResponse {
-  user: User;
-  token: string;
-}
+// ─── Constituency ─────────────────────────────────────────────────────────────
 
-// ─── District ────────────────────────────────────────────────────────────────
-
-export interface District {
-  id: string;
-  name: string;
+export interface Constituency {
+  id: number;
   province: string;
-  voters: number;
-  createdAt: string;
-  updatedAt: string;
+  district_number: number;
+  is_closed: boolean;
 }
 
-export interface CreateDistrictPayload {
-  name: string;
+// ─── Candidate (as returned inside constituency results) ──────────────────────
+
+export interface CandidateResult {
+  id: number;
+  title: string;
+  first_name: string;
+  last_name: string;
+  number: number;
+  image_url: string;
+  party_id: number;
+  party_name: string;
+  party_logo_url: string;
+  /** 0 when constituency is open, real count when closed */
+  vote_count: number;
   province: string;
+  district_number: number;
+  is_closed: boolean;
+  constituency?: {
+    is_closed: boolean;
+    province: string;
+    district_number: number;
+  };
 }
 
-export interface UpdateDistrictPayload {
-  name?: string;
-  province?: string;
+export interface ConstituencyResults {
+  constituency: Constituency;
+  candidates: CandidateResult[];
 }
 
 // ─── Party ───────────────────────────────────────────────────────────────────
 
-export interface CandidateSummary {
-  id: string;
-  number: number;
-  name: string;
-  platform: string;
-}
-
 export interface Party {
-  id: string;
+  id: number;
   name: string;
-  nameEn: string;
-  logo: string;
-  leader: string;
-  founded: string;
-  policy: string;
-  candidates: CandidateSummary[];
-  createdAt: string;
-  updatedAt: string;
+  logo_url: string;
 }
 
-export interface CreatePartyPayload {
-  name: string;
-  nameEn: string;
-  logo?: string;
-  leader: string;
-  founded: string;
-  policy: string;
-}
-
-export interface UpdatePartyPayload extends Partial<CreatePartyPayload> {}
-
-// ─── Candidate ───────────────────────────────────────────────────────────────
-
-export interface Candidate {
-  id: string;
+export interface PartyCandidate {
+  id: number;
+  title: string;
+  first_name: string;
+  last_name: string;
   number: number;
-  name: string;
-  party: string;
-  partyId: string;
-  district: string;
-  districtId: string;
-  photoUrl: string;
-  platform: string;
-  partyLogo: string;
-  createdAt: string;
-  updatedAt: string;
+  image_url: string;
+  province: string;
+  district_number: number;
 }
 
-export interface CreateCandidatePayload {
+export interface PartyDetails {
+  id: number;
+  name: string;
+  logo_url: string;
+  policy: string;
+  created_at: string;
+  candidates: PartyCandidate[];
+}
+
+export interface PartyOverviewItem {
+  id: number;
+  name: string;
+  logoUrl: string;
+  seats: number;
+}
+
+export interface PartyOverview {
+  totalSeats: number;
+  closedConstituencies: number;
+  parties: PartyOverviewItem[];
+}
+
+// ─── EC (Election Commission) ────────────────────────────────────────────────
+
+export interface CloseVotingPayload {
+  /** true = close voting, false = reopen voting */
+  isClosed: boolean;
+}
+
+export interface DeclareResultsWinner {
+  id: number;
+  title: string;
+  first_name: string;
+  last_name: string;
   number: number;
-  name: string;
-  partyId: string;
-  districtId: string;
-  photoUrl?: string;
-  platform: string;
+  party_name: string;
+  party_logo_url: string;
+  vote_count: number;
 }
 
-export interface UpdateCandidatePayload extends Partial<CreateCandidatePayload> {}
-
-// ─── Ballot ──────────────────────────────────────────────────────────────────
-
-export type BallotStatus = 'draft' | 'open' | 'closed' | 'tallied';
-
-export interface Ballot {
-  id: string;
-  districtId: string;
-  districtName: string;
-  status: BallotStatus;
-  openedAt?: string;
-  closedAt?: string;
-  totalVotes: number;
-  eligibleVoters: number;
-  createdAt: string;
-  updatedAt: string;
+export interface ConstituencyWinner {
+  id: number;
+  province: string;
+  district_number: number;
+  total_votes: number;
+  winner: DeclareResultsWinner;
 }
 
-export interface CreateBallotPayload {
-  districtId: string;
-}
+// ─── Voting ──────────────────────────────────────────────────────────────────
 
-export interface CastVotePayload {
-  candidateId: string;
-}
-
-// ─── Results ─────────────────────────────────────────────────────────────────
-
-export interface CandidateResult {
-  rank: number;
-  candidateId: string;
-  name: string;
-  party: string;
-  partyLogo: string;
-  photoUrl: string;
-  votes: number;
-  percentage: number;
-}
-
-export interface DistrictResult {
-  districtId: string;
-  districtName: string;
-  status: BallotStatus;
-  totalVotes: number;
-  eligibleVoters: number;
-  turnoutPercentage: number;
-  candidates: CandidateResult[];
-}
-
-// ─── User Management ─────────────────────────────────────────────────────────
-
-export type UserStatus = 'active' | 'inactive' | 'suspended';
-
-export interface UpdateUserRolePayload {
-  role: UserRole;
-}
-
-export interface UpdateUserStatusPayload {
-  status: UserStatus;
+export interface VotePayload {
+  userId: string;
+  candidateId: number | null;
+  constituencyId: number;
 }

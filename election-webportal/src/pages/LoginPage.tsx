@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Alert } from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../api';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -14,28 +15,38 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    // Mock authentication
-    setTimeout(() => {
-      if (nationalId === '1234567890123' && password === 'password') {
-        const mockUser = {
-          id: '1',
-          nationalId: nationalId,
-          fullName: 'สมชาย มั่นคง',
-          role: 'voter' as const,
-        };
-        login('mock-token-123', mockUser);
-        console.log('Login successful');
-        navigate('/voter/vote');
+    try {
+      const res = await authApi.login({ nationalId, password });
+
+      if (res.success && res.token && res.user) {
+        const fullName = res.user.firstName 
+          ? `${res.user.title || ''}${res.user.firstName} ${res.user.lastName || ''}`.trim()
+          : 'ผู้ใช้งานระบบ';
+
+        login(res.token, {
+          id: res.user.id,
+          nationalId: res.user.nationalId,
+          fullName: fullName,
+          role: res.user.role === 'VOTER' ? 'voter' : 'ec',
+          districtId: res.user.constituencyId?.toString(),
+          title: res.user.title,
+          firstName: res.user.firstName,
+          lastName: res.user.lastName,
+        });
+        navigate(res.user.role === 'VOTER' ? '/voter/vote' : '/ec/parties');
       } else {
-        setError('รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
+        setError(res.error ?? 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
       }
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

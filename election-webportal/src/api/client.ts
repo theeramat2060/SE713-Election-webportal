@@ -1,5 +1,4 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import type { ApiError } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
 
@@ -29,7 +28,7 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiError>) => {
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Token expired or invalid — clear local session
       localStorage.removeItem('token');

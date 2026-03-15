@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Alert } from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../api';
 import { ShieldCheck, ArrowLeft, Lock, UserCircle } from 'lucide-react';
 
 const AdminLoginPage: React.FC = () => {
@@ -14,36 +15,46 @@ const AdminLoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    // Mock administrative authentication
-    setTimeout(() => {
-      if (username === 'ec123' && password === 'password') {
-        const mockUser = {
-          id: 'ec-1',
-          nationalId: '0000000000000',
-          fullName: 'เจ้าหน้าที่ กกต. (ทดสอบ)',
-          role: 'ec' as const,
-        };
-        login('mock-ec-token', mockUser);
-        navigate('/ec/parties');
-      } else if (username === 'admin123' && password === 'password') {
-        const mockUser = {
-          id: 'admin-1',
-          nationalId: '1111111111111',
-          fullName: 'ผู้ดูแลระบบ (ทดสอบ)',
-          role: 'admin' as const,
-        };
-        login('mock-admin-token', mockUser);
-        navigate('/admin/districts');
+    try {
+      const res = await authApi.adminLogin({ username, password });
+
+      if (res.success && res.token && (res.user || res.admin)) {
+        if (res.admin) {
+          login(res.token, {
+            id: res.admin.id.toString(),
+            nationalId: '',
+            fullName: `Admin: ${res.admin.username}`,
+            role: 'admin',
+          });
+          navigate('/admin/districts');
+        } else if (res.user) {
+          login(res.token, {
+            id: res.user.id,
+            nationalId: res.user.nationalId,
+            fullName: `${res.user.title}${res.user.firstName} ${res.user.lastName}`,
+            role: 'ec',
+            districtId: res.user.constituencyId?.toString(),
+            title: res.user.title,
+            firstName: res.user.firstName,
+            lastName: res.user.lastName,
+          });
+          navigate('/ec/parties');
+        }
       } else {
-        setError('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง สำหรับเจ้าหน้าที่เท่านั้น');
+        const errMsg = typeof res.error === 'object' ? res.error.message : (res.error ?? 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
+        setError(errMsg);
       }
+    } catch (err: any) {
+      const errMsg = err.response?.data?.error?.message || err.response?.data?.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+      setError(errMsg);
+    } finally {
       setIsLoading(false);
-    }, 1200);
+    }
   };
 
   return (

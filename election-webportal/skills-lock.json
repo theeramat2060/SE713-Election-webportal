@@ -16,6 +16,11 @@
       "sourceType": "github",
       "computedHash": "01a94f035a1c3a1a405f611c0df212433d8973f18bf16e94540875ec58ee7b9b"
     },
+    "rest-api-design": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "computedHash": "e249c58df5d9d59407fc4de70b0d75bb336d917bbe0a75695d6ec8cf13cfaf35"
+    },
     "stitch-loop": {
       "source": "google-labs-code/stitch-skills",
       "sourceType": "github",
