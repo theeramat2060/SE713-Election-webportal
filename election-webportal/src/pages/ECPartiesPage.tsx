@@ -4,6 +4,8 @@ import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { canManageResource } from '../utils/permissions';
 import { 
   Plus, 
   Search, 
@@ -12,7 +14,8 @@ import {
   Users, 
   LayoutGrid, 
   Map as MapIcon,
-  Filter
+  Filter,
+  Shield
 } from 'lucide-react';
 
 interface StatsCardProps {
@@ -36,7 +39,11 @@ const StatsCard: React.FC<StatsCardProps> = ({ label, value, subtext, icon }) =>
 );
 
 const ECPartiesPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Check EC Staff admin-level permissions for parties
+  const partyPermissions = canManageResource(user?.role || 'voter', 'party');
 
   const parties = [
     {
@@ -70,13 +77,28 @@ const ECPartiesPage: React.FC = () => {
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-text-primary">จัดการพรรคการเมือง</h1>
-          <Link to="/ec/parties/add">
-            <Button variant="authority" className="flex items-center gap-2">
-              <Plus size={20} />
-              เพิ่มพรรคการเมืองใหม่
-            </Button>
-          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-text-primary">จัดการพรรคการเมือง</h1>
+            {partyPermissions.create && (
+              <p className="text-text-secondary flex items-center gap-1 mt-1">
+                <Shield size={14} className="text-green-600" />
+                <span className="text-green-600 text-sm">สิทธิ์แอดมิน: สร้าง/แก้ไข/ลบพรรคการเมือง</span>
+              </p>
+            )}
+          </div>
+          
+          {partyPermissions.create ? (
+            <Link to="/ec/parties/add">
+              <Button variant="authority" className="flex items-center gap-2">
+                <Plus size={20} />
+                เพิ่มพรรคการเมืองใหม่
+              </Button>
+            </Link>
+          ) : (
+            <div className="text-text-secondary text-sm">
+              ไม่มีสิทธิ์เพิ่มพรรคการเมือง
+            </div>
+          )}
         </div>
 
         {/* Stats Grid */}

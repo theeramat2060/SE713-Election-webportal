@@ -9,6 +9,7 @@ import PartiesPage from './pages/PartiesPage'
 import ECPartiesPage from './pages/ECPartiesPage'
 import ECCandidatesPage from './pages/ECCandidatesPage'
 import ECBallotPage from './pages/ECBallotPage'
+import ECCloseVotePage from './pages/ECCloseVotePage'
 import AdminDistrictsPage from './pages/AdminDistrictsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import AdminLoginPage from './pages/AdminLoginPage'
@@ -34,6 +35,7 @@ function App() {
           <Route path="/ec/candidates/add" element={<ECAddCandidatePage />} />
           <Route path="/ec/ballot" element={<ECBallotPage />} />
           <Route path="/ec/ballots" element={<ECBallotsManagementPage />} />
+          <Route path="/ec/close-vote" element={<ECCloseVotePage />} />
           <Route path="/admin/districts" element={<AdminDistrictsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
         </Routes>

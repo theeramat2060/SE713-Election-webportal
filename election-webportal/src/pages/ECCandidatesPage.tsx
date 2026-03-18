@@ -4,6 +4,8 @@ import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { canManageResource } from '../utils/permissions';
 import { 
   Plus, 
   Search, 
@@ -12,7 +14,8 @@ import {
   Users, 
   Filter,
   MoreVertical,
-  CheckCircle2
+  CheckCircle2,
+  Shield
 } from 'lucide-react';
 
 interface Candidate {
@@ -27,7 +30,11 @@ interface Candidate {
 }
 
 const ECCandidatesPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Check EC Staff admin-level permissions for candidates
+  const candidatePermissions = canManageResource(user?.role || 'voter', 'candidate');
 
   const candidates: Candidate[] = [
     {
@@ -69,14 +76,29 @@ const ECCandidatesPage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-text-primary">จัดการผู้สมัครสส.</h1>
-            <p className="text-text-secondary">ระบบจัดการข้อมูลและตรวจสอบสิทธิผู้สมัครเลือกตั้ง</p>
+            <p className="text-text-secondary">
+              ระบบจัดการข้อมูลและตรวจสอบสิทธิผู้สมัครเลือกตั้ง
+              {candidatePermissions.create && (
+                <span className="inline-flex items-center gap-1 ml-2 text-green-600 text-sm">
+                  <Shield size={14} />
+                  สิทธิ์แอดมิน: สร้าง/แก้ไข/ลบ
+                </span>
+              )}
+            </p>
           </div>
-          <Link to="/ec/candidates/add">
-            <Button variant="authority" className="flex items-center gap-2">
-              <Plus size={20} />
-              เพิ่มผู้สมัครใหม่
-            </Button>
-          </Link>
+          
+          {candidatePermissions.create ? (
+            <Link to="/ec/candidates/add">
+              <Button variant="authority" className="flex items-center gap-2">
+                <Plus size={20} />
+                เพิ่มผู้สมัครใหม่
+              </Button>
+            </Link>
+          ) : (
+            <div className="text-text-secondary text-sm">
+              ไม่มีสิทธิ์เพิ่มผู้สมัคร
+            </div>
+          )}
         </div>
 
         {/* Filters Section */}
@@ -148,13 +170,17 @@ const ECCandidatesPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button className="p-2 text-text-secondary hover:text-authority transition-colors">
-                        <Edit2 size={18} />
-                      </button>
-                      <button className="p-2 text-text-secondary hover:text-status-error transition-colors">
-                        <Trash2 size={18} />
-                      </button>
-                      <button className="p-2 text-text-secondary">
+                      {candidatePermissions.update && (
+                        <button className="p-2 text-text-secondary hover:text-authority transition-colors" title="แก้ไข">
+                          <Edit2 size={18} />
+                        </button>
+                      )}
+                      {candidatePermissions.delete && (
+                        <button className="p-2 text-text-secondary hover:text-status-error transition-colors" title="ลบ">
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                      <button className="p-2 text-text-secondary" title="ตัวเลือกเพิ่มเติม">
                         <MoreVertical size={18} />
                       </button>
                     </div>
