@@ -1,7 +1,16 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Vote, PieChart, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Vote, PieChart, User, LogOut, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useVoting } from '../context/VotingContext';
+import { ecApi } from '../api';
+
+interface NavLink {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick?: (e: React.MouseEvent) => void;
+}
 
 interface BaseLayoutProps {
   children: React.ReactNode;
@@ -12,31 +21,60 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({ children, role = 'public
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isVotingClosed } = useVoting();
+  const [isLoadingResults, setIsLoadingResults] = React.useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
+  const handleResultsClick = async (e: React.MouseEvent) => {
+    e.preventDefault(); // ป้องกันการ navigate ทันที
+    
+    setIsLoadingResults(true);
+    try {
+      console.log('🔄 Calling /ec/declare-results API from navigation...');
+      const results = await ecApi.declareResults();
+      console.log('✅ Results API called successfully from navigation:', results);
+      
+      // Cache results for ResultsPage
+      localStorage.setItem('electionResults', JSON.stringify(results));
+      localStorage.setItem('electionResultsTimestamp', new Date().toISOString());
+      localStorage.setItem('electionResultsFetched', 'true'); // Flag for ResultsPage
+      
+      // Navigate หลังจาก API เสร็จ
+      navigate('/results');
+    } catch (error) {
+      console.error('❌ Error calling declare-results from navigation:', error);
+      // Navigate ไปยังหน้า results แม้ API ล้มเหลว เพื่อให้ ResultsPage จัดการ error
+      navigate('/results');
+    } finally {
+      setIsLoadingResults(false);
+    }
+  };
+
   const navLinks = {
     public: [
       { name: 'หน้าแรก', path: '/', icon: LayoutDashboard },
-      { name: 'ผลการเลือกตั้ง', path: '/results', icon: PieChart },
+      ...(isVotingClosed ? [{ name: 'ผลการเลือกตั้ง', path: '/results', icon: PieChart, onClick: handleResultsClick }] : []),
       { name: 'ข้อมูลพรรคการเมือง', path: '/parties', icon: User },
     ],
     voter: [
       { name: 'ลงคะแนนเสียง', path: '/voter/vote', icon: Vote },
-      { name: 'ผลการเลือกตั้ง', path: '/results', icon: PieChart },
+      ...(isVotingClosed ? [{ name: 'ผลการเลือกตั้ง', path: '/results', icon: PieChart, onClick: handleResultsClick }] : []),
     ],
     ec: [
       { name: 'จัดการพรรคการเมือง', path: '/ec/parties', icon: LayoutDashboard },
       { name: 'จัดการผู้สมัคร', path: '/ec/candidates', icon: User },
       { name: 'จัดการกล่องลงคะแนน', path: '/ec/ballots', icon: Vote },
       { name: 'ปิดการลงคะแนน', path: '/ec/close-vote', icon: PieChart },
+      ...(isVotingClosed ? [{ name: 'ผลการเลือกตั้ง', path: '/results', icon: BarChart3, onClick: handleResultsClick }] : []),
     ],
     admin: [
       { name: 'จัดการเขตการเลือกตั้ง', path: '/admin/districts', icon: LayoutDashboard },
       { name: 'จัดการผู้ใช้', path: '/admin/users', icon: User },
+      ...(isVotingClosed ? [{ name: 'ผลการเลือกตั้ง', path: '/results', icon: BarChart3, onClick: handleResultsClick }] : []),
     ],
   };
 
@@ -58,6 +96,28 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({ children, role = 'public
             {currentLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
+              
+              // ถ้ามี onClick handler ให้ใช้แทน Link
+              if (link.onClick) {
+                return (
+                  <button
+                    key={link.path}
+                    onClick={link.onClick}
+                    disabled={link.path === '/results' && isLoadingResults}
+                    className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+                      isActive ? 'text-democracy' : 'text-text-secondary hover:text-democracy'
+                    } ${link.path === '/results' && isLoadingResults ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {link.path === '/results' && isLoadingResults ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Icon className="w-4 h-4" />
+                    )}
+                    {link.name}
+                  </button>
+                );
+              }
+              
               return (
                 <Link
                   key={link.path}

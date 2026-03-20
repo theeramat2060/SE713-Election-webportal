@@ -32,13 +32,21 @@ const LoginPage: React.FC = () => {
           id: res.user.id,
           nationalId: res.user.nationalId,
           fullName: fullName,
-          role: res.user.role === 'VOTER' ? 'voter' : 'ec',
+          role: res.user.role === 'VOTER' ? 'voter' : 
+                res.user.role === 'EC' ? 'ec' : 
+                'voter', // Default to voter if role is missing
           districtId: res.user.constituencyId?.toString(),
           title: res.user.title,
           firstName: res.user.firstName,
           lastName: res.user.lastName,
         });
-        navigate(res.user.role === 'VOTER' ? '/voter/vote' : '/ec/parties');
+        
+        // Determine redirect based on role
+        const userRole = res.user.role === 'VOTER' ? 'voter' : 
+                        res.user.role === 'EC' ? 'ec' : 
+                        'voter'; // Default to voter if role is missing
+        
+        navigate(userRole === 'voter' ? '/voter/vote' : '/ec/parties');
       } else {
         setError(res.error ?? 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
       }

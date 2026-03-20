@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { hasPermission } from '../utils/permissions';
 import { useAuth } from '../context/AuthContext';
+import { useVoting } from '../context/VotingContext';
+import { ecApi } from '../api';
 
 interface ElectionStats {
   totalRegistered: number;
@@ -24,9 +26,8 @@ interface ElectionStats {
 
 const ECCloseVotePage: React.FC = () => {
   const { user } = useAuth();
+  const { isVotingClosed, closedAt, closeVoting, openVoting } = useVoting();
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
-  const [isVotingClosed, setIsVotingClosed] = useState(false);
-  const [closedAt, setClosedAt] = useState<Date | null>(null);
 
   // Mock data - replace with real API calls
   const electionStats: ElectionStats = {
@@ -39,13 +40,54 @@ const ECCloseVotePage: React.FC = () => {
 
   const canCloseVote = user?.role === 'ec' && hasPermission(user.role, 'close_vote') || user?.role === 'admin';
 
-  const handleCloseVoting = () => {
-    setIsVotingClosed(true);
-    setClosedAt(new Date());
-    setIsCloseModalOpen(false);
-    
-    // Here you would make an API call to close voting
-    console.log('Voting closed at:', new Date().toISOString());
+  const handleCloseVoting = async () => {
+    try {
+      console.log('Attempting to close voting via API...');
+      
+      // Call backend API to close voting using update-voting endpoint
+      await ecApi.updateVotingStatus({
+        action: 'close',
+        closedBy: user?.name || 'EC Official',
+        closedAt: new Date().toISOString(),
+      });
+
+      console.log('✅ Voting closed successfully via API');
+
+      // Update local state only after successful API call
+      if (user?.name) {
+        closeVoting(user.name);
+      } else {
+        closeVoting('EC Official');
+      }
+      setIsCloseModalOpen(false);
+      
+    } catch (error) {
+      console.error('❌ Error closing voting:', error);
+      // You might want to show an error message to the user here
+      alert('เกิดข้อผิดพลาดในการปิดการลงคะแนน กรุณาลองใหม่');
+    }
+  };
+
+  const handleOpenVoting = async () => {
+    try {
+      console.log('Attempting to reopen voting via API...');
+      
+      // Call backend API to reopen voting using update-voting endpoint
+      await ecApi.updateVotingStatus({
+        action: 'open',
+        closedBy: user?.name || 'EC Official',
+        closedAt: new Date().toISOString(),
+      });
+
+      console.log('✅ Voting reopened successfully via API');
+
+      // Update local state only after successful API call
+      openVoting();
+      
+    } catch (error) {
+      console.error('❌ Error reopening voting:', error);
+      alert('เกิดข้อผิดพลาดในการเปิดการลงคะแนน กรุณาลองใหม่');
+    }
   };
 
   return (
@@ -76,9 +118,18 @@ const ECCloseVotePage: React.FC = () => {
         {/* Current Status */}
         {closedAt && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <Lock size={24} className="text-red-600" />
-              <h3 className="text-lg font-bold text-red-900">การลงคะแนนเสียงถูกปิดแล้ว</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <Lock size={24} className="text-red-600" />
+                <h3 className="text-lg font-bold text-red-900">การลงคะแนนเสียงถูกปิดแล้ว</h3>
+              </div>
+              <Button 
+                onClick={handleOpenVoting} 
+                variant="outline"
+                className="text-green-600 border-green-600 hover:bg-green-50"
+              >
+                เปิดการลงคะแนนใหม่
+              </Button>
             </div>
             <div className="flex items-center gap-2 text-red-700">
               <Calendar size={16} />

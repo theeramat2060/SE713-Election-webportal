@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Constituency,
   CloseVotingPayload,
+  UpdateVotingPayload,
   ConstituencyWinner,
 } from './types';
 
@@ -26,6 +27,30 @@ export const ecApi = {
    */
   setVotingStatus: async (payload: CloseVotingPayload): Promise<void> => {
     await apiClient.post('/ec/close-voting', payload);
+  },
+
+  /**
+   * Update voting status with additional metadata — POST /api/ec/update-voting
+   * Body: { action: 'close', closedBy: 'EC Official', closedAt: '2026-03-19...' }
+   */
+  updateVotingStatus: async (payload: UpdateVotingPayload): Promise<void> => {
+    await apiClient.post('/ec/update-voting', payload);
+  },
+
+  /**
+   * Get current voting status from backend
+   * GET /api/ec/voting-status
+   */
+  getVotingStatus: async (): Promise<{ isVotingClosed: boolean }> => {
+    try {
+      const { data } = await apiClient.get<ApiResponse<{ isVotingClosed: boolean }>>(
+        '/ec/voting-status',
+      );
+      return data.data ?? { isVotingClosed: false };
+    } catch (error) {
+      console.warn('Failed to fetch voting status from backend, assuming voting is open:', error);
+      return { isVotingClosed: false };
+    }
   },
 
   /**

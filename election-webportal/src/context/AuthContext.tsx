@@ -42,7 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: res.user.id,
               nationalId: res.user.nationalId,
               fullName: `${res.user.title || ''}${res.user.firstName} ${res.user.lastName || ''}`.trim(),
-              role: res.user.role === 'VOTER' ? 'voter' : 'ec',
+              role: res.user.role === 'VOTER' ? 'voter' : 
+                    res.user.role === 'EC' ? 'ec' : 
+                    'voter', // Default to voter if role is missing
               districtId: res.user.constituencyId?.toString(),
               title: res.user.title,
               firstName: res.user.firstName,

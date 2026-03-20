@@ -34,6 +34,7 @@ export type {
   PartyOverview,
   // EC
   CloseVotingPayload,
+  UpdateVotingPayload,
   DeclareResultsWinner,
   ConstituencyWinner,
   // Voting

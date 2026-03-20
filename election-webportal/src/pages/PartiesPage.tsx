@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
 import { ChevronDown, ChevronUp, Users, FileText, ArrowRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface CandidateSummary {
   name: string;
@@ -57,14 +58,18 @@ const mockParties: Party[] = [
 ];
 
 const PartiesPage: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
   const [expandedId, setExpandedId] = useState<string | null>("1");
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  // Determine the layout role based on authentication status
+  const layoutRole = isAuthenticated && user ? user.role : 'public';
+
   return (
-    <BaseLayout>
+    <BaseLayout role={layoutRole}>
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Hero Section */}
         <div className="bg-democracy-light border border-democracy/20 rounded-lg p-8 shadow-sm text-center space-y-4">

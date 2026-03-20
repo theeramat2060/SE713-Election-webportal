@@ -161,6 +161,12 @@ export interface CloseVotingPayload {
   isClosed: boolean;
 }
 
+export interface UpdateVotingPayload {
+  action: 'close' | 'open';
+  closedBy?: string;
+  closedAt?: string;
+}
+
 export interface DeclareResultsWinner {
   id: number;
   title: string;

@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-import LandingPage from './pages/LandingPage'
+import { VotingProvider } from './context/VotingContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { RoleBasedRedirect } from './components/RoleBasedRedirect'
+import { LoginGuard } from './components/LoginGuard'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VotePage from './pages/VotePage'
@@ -20,26 +23,85 @@ import ECBallotsManagementPage from './pages/ECBallotsManagementPage'
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <VotingProvider>
+        <Router>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/admin-login" element={<AdminLoginPage />} />
+          {/* Root Route with Role-based Redirect */}
+          <Route path="/" element={<RoleBasedRedirect />} />
+          
+          {/* Public Routes */}
+          <Route path="/login" element={
+            <LoginGuard>
+              <LoginPage />
+            </LoginGuard>
+          } />
+          <Route path="/admin-login" element={
+            <LoginGuard>
+              <AdminLoginPage />
+            </LoginGuard>
+          } />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/voter/vote" element={<VotePage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/parties" element={<PartiesPage />} />
-          <Route path="/ec/parties" element={<ECPartiesPage />} />
-          <Route path="/ec/parties/add" element={<ECAddPartyPage />} />
-          <Route path="/ec/candidates" element={<ECCandidatesPage />} />
-          <Route path="/ec/candidates/add" element={<ECAddCandidatePage />} />
-          <Route path="/ec/ballot" element={<ECBallotPage />} />
-          <Route path="/ec/ballots" element={<ECBallotsManagementPage />} />
-          <Route path="/ec/close-vote" element={<ECCloseVotePage />} />
-          <Route path="/admin/districts" element={<AdminDistrictsPage />} />
-          <Route path="/admin/users" element={<AdminUsersPage />} />
+          
+          {/* Voter-only Routes */}
+          <Route path="/voter/vote" element={
+            <ProtectedRoute allowedRoles={['voter']}>
+              <VotePage />
+            </ProtectedRoute>
+          } />
+          
+          {/* EC Official Routes */}
+          <Route path="/ec/parties" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECPartiesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/parties/add" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECAddPartyPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/candidates" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECCandidatesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/candidates/add" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECAddCandidatePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/ballot" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECBallotPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/ballots" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECBallotsManagementPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/ec/close-vote" element={
+            <ProtectedRoute allowedRoles={['ec']}>
+              <ECCloseVotePage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin-only Routes */}
+          <Route path="/admin/districts" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDistrictsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          } />
         </Routes>
       </Router>
+      </VotingProvider>
     </AuthProvider>
   )
 }

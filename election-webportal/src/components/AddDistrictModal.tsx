@@ -117,7 +117,7 @@ export const AddDistrictModal: React.FC<AddDistrictModalProps> = ({
     
     if (validateForm()) {
       onSubmit(formData);
-      setFormData({ code: '', name: '', province: '', region: 'Central' });
+      setFormData({ name: '', province: '' });
       setErrors({});
       onClose();
     }
