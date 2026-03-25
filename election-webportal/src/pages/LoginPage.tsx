@@ -48,7 +48,8 @@ const LoginPage: React.FC = () => {
         
         navigate(userRole === 'voter' ? '/voter/vote' : '/ec/parties');
       } else {
-        setError(res.error ?? 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
+        const errorMessage = typeof res.error === 'string' ? res.error : res.error?.message || 'รหัสประจำตัวหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง';
+        setError(errorMessage);
       }
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');

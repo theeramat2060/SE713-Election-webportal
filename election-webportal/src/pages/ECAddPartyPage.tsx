@@ -5,34 +5,94 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Alert } from '../components/Alert';
 import { ArrowLeft, Upload, Save, X, Info } from 'lucide-react';
+import { partiesApi } from '../api/parties';
 
 const ECAddPartyPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    nameTh: '',
-    nameEn: '',
-    leader: '',
+    name: '',
     policy: '',
-    foundedDate: '',
   });
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('กรุณาเลือกไฟล์รูปภาพเท่านั้น (PNG, JPG, JPEG)');
+        return;
+      }
+
+      // Validate file size (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('ขนาดไฟล์ต้องไม่เกิน 2MB');
+        return;
+      }
+
+      setLogoFile(file);
+      setError(null);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setLogoPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    // Reset file input
+    const fileInput = document.getElementById('logo-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Mock API call to save party
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Prepare FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('policy', formData.policy);
+      
+      if (logoFile) {
+        formDataToSend.append('logo', logoFile);
+      }
+
+      // Call backend API to create party with file upload
+      await partiesApi.createWithFile(formDataToSend);
+      
       setSuccess(true);
+      console.log('✅ Party created successfully with logo');
+      
+      // Redirect to parties page after 2 seconds
       setTimeout(() => navigate('/ec/parties'), 2000);
-    }, 1500);
+      
+    } catch (err: any) {
+      console.error('❌ Error creating party:', err);
+      const errorMessage = err.response?.data?.error?.message 
+        || err.response?.data?.error 
+        || 'เกิดข้อผิดพลาดในการสร้างพรรค กรุณาลองใหม่';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,72 +122,103 @@ const ECAddPartyPage: React.FC = () => {
           />
         )}
 
+        {error && (
+          <Alert 
+            type="error" 
+            message={error}
+            className="mb-8 animate-in fade-in slide-in-from-top-4"
+          />
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Form Card */}
           <div className="card p-8 bg-white space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <Input 
-                id="nameTh"
-                name="nameTh"
-                label="ชื่อพรรคการเมือง (ภาษาไทย)"
+                id="name"
+                name="name"
+                label="ชื่อพรรคการเมือง"
                 placeholder="เช่น พรรคประชาธิปไตยใหม่"
-                value={formData.nameTh}
-                onChange={handleChange}
-                required
-              />
-              <Input 
-                id="nameEn"
-                name="nameEn"
-                label="Party Name (English)"
-                placeholder="e.g. New Democracy Party"
-                value={formData.nameEn}
-                onChange={handleChange}
-                required
-              />
-              <Input 
-                id="leader"
-                name="leader"
-                label="ชื่อหัวหน้าพรรค"
-                placeholder="ชื่อ-นามสกุล"
-                value={formData.leader}
-                onChange={handleChange}
-                required
-              />
-              <Input 
-                id="foundedDate"
-                name="foundedDate"
-                type="date"
-                label="วันที่ก่อตั้งพรรค"
-                value={formData.foundedDate}
+                value={formData.name}
                 onChange={handleChange}
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">สรุปนโยบายพรรค (Policy Summary)</label>
-              <textarea 
+            <div className="space-y-4">
+              <label htmlFor="policy" className="block text-sm font-medium text-text-primary">
+                นโยบายหลักของพรรค
+              </label>
+              <textarea
+                id="policy"
                 name="policy"
-                rows={4}
-                className="w-full px-4 py-3 rounded-lg border border-surface-border focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority transition-all resize-none"
-                placeholder="ระบุใจความสำคัญของนโยบายพรรค..."
+                rows={6}
+                className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-authority/20 focus:border-authority transition-colors resize-none"
+                placeholder="อธิบายนโยบายหลักและทิศทางการพัฒนาประเทศของพรรค..."
                 value={formData.policy}
                 onChange={handleChange}
                 required
               />
             </div>
 
-            {/* Mock Logo Upload */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">โลโก้พรรคการเมือง</label>
-              <div className="border-2 border-dashed border-surface-border rounded-xl p-8 flex flex-col items-center justify-center bg-surface-soft hover:bg-white hover:border-authority transition-all cursor-pointer group">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-card group-hover:scale-110 transition-transform">
-                  <Upload className="w-8 h-8 text-authority" />
+            {/* File Upload for Logo */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-text-primary">
+                โลโก้พรรคการเมือง (ไม่บังคับ)
+              </label>
+              
+              {!logoPreview ? (
+                <div className="border-2 border-dashed border-surface-border rounded-xl p-8 flex flex-col items-center justify-center bg-surface-soft hover:bg-white hover:border-authority transition-all">
+                  <input
+                    type="file"
+                    id="logo-upload"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label 
+                    htmlFor="logo-upload"
+                    className="cursor-pointer flex flex-col items-center justify-center w-full"
+                  >
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-card hover:scale-110 transition-transform">
+                      <Upload className="w-8 h-8 text-authority" />
+                    </div>
+                    <p className="text-sm font-medium text-text-primary">คลิกเพื่ออัปโหลดไฟล์</p>
+                    <p className="text-xs text-text-secondary mt-1">PNG, JPG, JPEG ขนาดไม่เกิน 2MB (แนะนำขนาด 400x400px)</p>
+                  </label>
                 </div>
-                <p className="text-sm font-medium text-text-primary">คลิกเพื่ออัปโหลดไฟล์</p>
-                <p className="text-xs text-text-secondary mt-1">PNG, JPG ขนาดไม่เกิน 2MB (แนะนำขนาด 400x400px)</p>
-              </div>
+              ) : (
+                <div className="border border-surface-border rounded-lg p-4 bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 border border-surface-border rounded-lg overflow-hidden bg-surface-soft">
+                      <img 
+                        src={logoPreview} 
+                        alt="Logo Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-text-primary">{logoFile?.name}</p>
+                      <p className="text-sm text-text-secondary">
+                        {logoFile ? (logoFile.size / 1024).toFixed(1) : '0'} KB
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemoveLogo}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      ลบ
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Logo URL Display removed since we now use file upload */}
           </div>
 
           {/* Action Footer */}
@@ -150,6 +241,7 @@ const ECAddPartyPage: React.FC = () => {
                 variant="authority" 
                 className="px-8 flex items-center gap-2"
                 isLoading={isLoading}
+                disabled={!formData.name.trim() || !formData.policy.trim()}
               >
                 <Save className="w-4 h-4" />
                 บันทึกข้อมูลพรรค

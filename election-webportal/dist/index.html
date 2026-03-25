@@ -8,10 +8,35 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-JBzKyAEw.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D2Ff2tnz.css">
+    <script type="module" crossorigin src="/assets/index-PznSvwwH.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Yu5in-Xr.css">
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Debug script -->
+    <script>
+      // Clear localStorage for testing
+      localStorage.removeItem('votingStatus');
+      
+      setTimeout(() => {
+        console.log('🧪 Testing election status from browser...');
+        fetch('http://localhost:3000/api/public/election-status')
+          .then(response => response.json())
+          .then(data => {
+            console.log('✅ Browser API Response:', data);
+            if (data.success && data.data) {
+              const summary = data.data;
+              const shouldShowResults = summary.closedConstituencies > 0;
+              console.log('📊 Browser Logic Test:');
+              console.log(`  isVotingClosed: ${summary.isVotingClosed}`);
+              console.log(`  closedConstituencies: ${summary.closedConstituencies}`);
+              console.log(`  shouldShowResults: ${shouldShowResults}`);
+              console.log(`  Expected: ${shouldShowResults ? 'SHOW RESULTS' : 'SHOW OPEN MESSAGE'}`);
+            }
+          })
+          .catch(error => console.error('❌ Browser API Error:', error));
+      }, 2000);
+    </script>
   </body>
 </html>

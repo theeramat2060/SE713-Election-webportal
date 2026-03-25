@@ -6,8 +6,11 @@
 export { authApi } from './auth';
 export { partiesApi } from './parties';
 export { constituenciesApi } from './constituencies';
+export { candidatesApi } from './candidates';
 export { ecApi } from './ec';
 export { electionApi } from './election';
+export { voterApi } from './voter';
+export { adminApi } from './admin';
 export { apiClient } from './client';
 
 export type {

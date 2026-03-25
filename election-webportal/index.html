@@ -12,5 +12,30 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Debug script -->
+    <script>
+      // Clear localStorage for testing
+      localStorage.removeItem('votingStatus');
+      
+      setTimeout(() => {
+        console.log('🧪 Testing election status from browser...');
+        fetch('http://localhost:3000/api/public/election-status')
+          .then(response => response.json())
+          .then(data => {
+            console.log('✅ Browser API Response:', data);
+            if (data.success && data.data) {
+              const summary = data.data;
+              const shouldShowResults = summary.closedConstituencies > 0;
+              console.log('📊 Browser Logic Test:');
+              console.log(`  isVotingClosed: ${summary.isVotingClosed}`);
+              console.log(`  closedConstituencies: ${summary.closedConstituencies}`);
+              console.log(`  shouldShowResults: ${shouldShowResults}`);
+              console.log(`  Expected: ${shouldShowResults ? 'SHOW RESULTS' : 'SHOW OPEN MESSAGE'}`);
+            }
+          })
+          .catch(error => console.error('❌ Browser API Error:', error));
+      }, 2000);
+    </script>
   </body>
 </html>

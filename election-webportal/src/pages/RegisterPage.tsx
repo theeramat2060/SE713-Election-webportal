@@ -206,7 +206,8 @@ const RegisterPage: React.FC = () => {
       });
 
       if (!res.success || !res.token) {
-        setServerError(res.error ?? 'การลงทะเบียนล้มเหลว กรุณาลองใหม่อีกครั้ง');
+        const errorMessage = typeof res.error === 'string' ? res.error : res.error?.message || 'การลงทะเบียนล้มเหลว กรุณาลองใหม่อีกครั้ง';
+        setServerError(errorMessage);
         return;
       }
 

@@ -6,12 +6,12 @@ import { Alert } from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import { useVoting } from '../context/VotingContext';
 import { Search, MapPin, Check } from 'lucide-react';
-import { electionApi, constituenciesApi } from '../api';
+import { electionApi, constituenciesApi, voterApi } from '../api';
 import type { CandidateResult, Constituency } from '../api';
 
 const VotePage: React.FC = () => {
   const { user } = useAuth();
-  const { isVotingClosed } = useVoting();
+  const { isVotingClosed, getConstituencyStatus, isConstituencyOpen } = useVoting();
   const [selectedCandidate, setSelectedCandidate] = useState<number | 'abstain' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
@@ -20,6 +20,7 @@ const VotePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isConstituencyVotingClosed, setIsConstituencyVotingClosed] = useState(false);
 
   useEffect(() => {
     const fetchVoterContext = async () => {
@@ -30,6 +31,14 @@ const VotePage: React.FC = () => {
       }
 
       try {
+        // 0. Check if user has already voted
+        const myVoteRes = await voterApi.getMyVote();
+        if (myVoteRes.success && myVoteRes.data) {
+          setHasVoted(true);
+          setIsLoading(false);
+          return;
+        }
+
         // 1. Fetch Candidates (This endpoint returns candidates for the user's assigned constituency)
         const candRes = await electionApi.getCandidatesByUserId(user.id);
         
@@ -58,6 +67,17 @@ const VotePage: React.FC = () => {
             };
           }
           setConstituency(constData);
+          
+          // Check constituency-specific voting status
+          if (constData) {
+            const constituencyStatus = getConstituencyStatus(constData.province, constData.district_number);
+            if (constituencyStatus) {
+              setIsConstituencyVotingClosed(constituencyStatus.is_closed);
+            } else {
+              // If not found in status, check if globally closed or use constituency data
+              setIsConstituencyVotingClosed(isVotingClosed || constData.is_closed);
+            }
+          }
         } else {
           const errMsg = typeof candRes.error === 'object' ? candRes.error.message : (candRes.error ?? 'เกิดข้อผิดพลาดในการโหลดรายชื่อผู้สมัคร');
           setError(errMsg);
@@ -73,18 +93,18 @@ const VotePage: React.FC = () => {
     fetchVoterContext();
   }, [user]);
 
-  // Clear selection and show notification when voting is closed
+  // Clear selection and show notification when voting is closed  
   useEffect(() => {
-    if (isVotingClosed && selectedCandidate) {
+    if (isConstituencyVotingClosed && selectedCandidate) {
       setSelectedCandidate(null);
-      setError('การลงคะแนนเสียงถูกปิดแล้ว การเลือกของคุณถูกยกเลิก');
+      setError('การลงคะแนนเสียงในเขตของคุณถูกปิดแล้ว การเลือกของคุณถูกยกเลิก');
     }
-  }, [isVotingClosed, selectedCandidate]);
+  }, [isConstituencyVotingClosed, selectedCandidate]);
 
   const handleVote = async () => {
-    // Check if voting is closed
-    if (isVotingClosed) {
-      setError('การลงคะแนนเสียงสิ้นสุดแล้ว ไม่สามารถลงคะแนนได้');
+    // Check if voting is closed in this constituency
+    if (isConstituencyVotingClosed) {
+      setError('การลงคะแนนเสียงในเขตของคุณสิ้นสุดแล้ว ไม่สามารถลงคะแนนได้');
       return;
     }
 
@@ -128,11 +148,11 @@ const VotePage: React.FC = () => {
     <BaseLayout role="voter">
       <div className="flex flex-col gap-8">
         {/* Voting Status Alert */}
-        {isVotingClosed && (
-          <Alert variant="error" title="การลงคะแนนเสียงสิ้นสุดแล้ว">
-            <p>การลงคะแนนเสียงได้ปิดแล้วอย่างเป็นทางการ ไม่สามารถลงคะแนนเพิ่มเติมได้</p>
-            <p className="mt-2">คุณสามารถดูผลการเลือกตั้งได้ในเมนู "ผลการเลือกตั้ง"</p>
-          </Alert>
+        {isConstituencyVotingClosed && (
+          <Alert 
+            type="error" 
+            message={`การลงคะแนนเสียงในเขต${constituency?.province || ''} เขต ${constituency?.district_number || ''} ได้ปิดแล้ว ไม่สามารถลงคะแนนเพิ่มเติมได้ คุณสามารถดูผลการเลือกตั้งได้ในเมนู ผลการเลือกตั้ง`} 
+          />
         )}
 
         {/* Header Info */}
@@ -190,11 +210,11 @@ const VotePage: React.FC = () => {
                     filteredCandidates.map((candidate) => (
                       <div 
                         key={candidate.id}
-                        onClick={() => !isVotingClosed && setSelectedCandidate(candidate.id)}
+                        onClick={() => !isConstituencyVotingClosed && setSelectedCandidate(candidate.id)}
                         className={`
                           card transition-all relative overflow-hidden group
-                           ${isVotingClosed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                          ${selectedCandidate === candidate.id ? 'ring-2 ring-democracy border-democracy bg-democracy-light/20' : isVotingClosed ? '' : 'hover:border-democracy/30'}
+                           ${isConstituencyVotingClosed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                          ${selectedCandidate === candidate.id ? 'ring-2 ring-democracy border-democracy bg-democracy-light/20' : isConstituencyVotingClosed ? '' : 'hover:border-democracy/30'}
                         `}
                       >
                         {selectedCandidate === candidate.id && (
@@ -240,11 +260,11 @@ const VotePage: React.FC = () => {
 
                   {/* No Vote Option */}
                   <div 
-                    onClick={() => !isVotingClosed && setSelectedCandidate('abstain')}
+                    onClick={() => !isConstituencyVotingClosed && setSelectedCandidate('abstain')}
                     className={`
                       card transition-all relative overflow-hidden group border-dashed
-                      ${isVotingClosed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                      ${selectedCandidate === 'abstain' ? 'ring-2 ring-text-secondary border-text-secondary bg-surface-soft' : isVotingClosed ? 'bg-surface-soft/50' : 'hover:border-text-secondary/30 bg-surface-soft/50'}
+                      ${isConstituencyVotingClosed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                      ${selectedCandidate === 'abstain' ? 'ring-2 ring-text-secondary border-text-secondary bg-surface-soft' : isConstituencyVotingClosed ? 'bg-surface-soft/50' : 'hover:border-text-secondary/30 bg-surface-soft/50'}
                     `}
                   >
                     {selectedCandidate === 'abstain' && (
@@ -289,11 +309,11 @@ const VotePage: React.FC = () => {
               <Button 
                 size="lg" 
                 className="w-full max-w-sm h-14 text-xl shadow-lg"
-                disabled={!selectedCandidate || isSubmitting || constituency?.is_closed || isVotingClosed}
+                disabled={!selectedCandidate || isSubmitting || isConstituencyVotingClosed}
                 isLoading={isSubmitting}
                 onClick={handleVote}
               >
-                {isVotingClosed ? 'การลงคะแนนสิ้นสุดแล้ว' : 'ยืนยันการลงคะแนน'}
+                {isConstituencyVotingClosed ? 'การลงคะแนนสิ้นสุดแล้ว' : 'ยืนยันการลงคะแนน'}
               </Button>
             </div>
           </>
