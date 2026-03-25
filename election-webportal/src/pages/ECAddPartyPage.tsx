@@ -66,6 +66,19 @@ const ECAddPartyPage: React.FC = () => {
     setError(null);
 
     try {
+      // Validate form
+      if (!formData.name.trim()) {
+        setError('กรุณากรอกชื่อพรรคการเมือง');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!formData.policy.trim()) {
+        setError('กรุณากรอกนโยบายพรรค');
+        setIsLoading(false);
+        return;
+      }
+
       // Prepare FormData for file upload
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
@@ -75,20 +88,36 @@ const ECAddPartyPage: React.FC = () => {
         formDataToSend.append('logo', logoFile);
       }
 
+      console.log('📤 Submitting party creation:', {
+        name: formData.name,
+        policy: formData.policy.substring(0, 50) + '...',
+        hasLogo: !!logoFile
+      });
+
       // Call backend API to create party with file upload
-      await partiesApi.createWithFile(formDataToSend);
-      
+      const result = await partiesApi.createWithFile(formDataToSend);
+      console.log('✅ Party created successfully:', result);
+
       setSuccess(true);
-      console.log('✅ Party created successfully with logo');
       
       // Redirect to parties page after 2 seconds
       setTimeout(() => navigate('/ec/parties'), 2000);
       
     } catch (err: any) {
       console.error('❌ Error creating party:', err);
-      const errorMessage = err.response?.data?.error?.message 
-        || err.response?.data?.error 
-        || 'เกิดข้อผิดพลาดในการสร้างพรรค กรุณาลองใหม่';
+      
+      // Extract meaningful error message
+      let errorMessage = 'เกิดข้อผิดพลาดในการสร้างพรรค กรุณาลองใหม่';
+      
+      if (err.response?.data?.error) {
+        errorMessage = typeof err.response.data.error === 'string' 
+          ? err.response.data.error 
+          : err.response.data.error.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      console.error('📋 Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
       setIsLoading(false);

@@ -40,7 +40,12 @@ export const partiesApi = {
       '/ec/create-party',
       payload
     );
-    return data.data!;
+    
+    if (!data.success || !data.data) {
+      throw new Error(typeof data.error === 'string' ? data.error : 'Failed to create party');
+    }
+    
+    return data.data;
   },
 
   /**
@@ -49,15 +54,36 @@ export const partiesApi = {
    * Supports FormData with logo file upload
    */
   createWithFile: async (formData: FormData): Promise<Party> => {
-    const { data } = await apiClient.post<ApiResponse<Party>>(
-      '/ec/create-party',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+    try {
+      const { data } = await apiClient.post<ApiResponse<Party>>(
+        '/ec/create-party',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      
+      if (!data.success || !data.data) {
+        console.error('API Error - createWithFile response:', { 
+          success: data.success, 
+          data: data.data, 
+          error: data.error 
+        });
+        throw new Error(
+          typeof data.error === 'string' 
+            ? data.error 
+            : (data.error && typeof data.error === 'object' && 'message' in data.error 
+              ? (data.error as any).message 
+              : 'Failed to create party')
+        );
       }
-    );
-    return data.data!;
+      
+      return data.data;
+    } catch (error: any) {
+      console.error('createWithFile error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 };
