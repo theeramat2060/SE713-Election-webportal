@@ -6,8 +6,26 @@ export const partiesApi = {
    * List all parties (basic info) — GET /api/public/parties
    */
   getAll: async (): Promise<Party[]> => {
-    const { data } = await apiClient.get<ApiResponse<Party[]>>('/public/parties');
-    return data.data ?? [];
+    try {
+      const { data } = await apiClient.get<ApiResponse<Party[]>>('/public/parties');
+      const parties = data.data ?? [];
+      
+      // Filter and validate parties to ensure they have required fields
+      const validParties = Array.isArray(parties) 
+        ? parties.filter(party => 
+            party && 
+            typeof party === 'object' && 
+            party.name && 
+            typeof party.name === 'string'
+          )
+        : [];
+      
+      console.log(`✅ Parties fetched: ${validParties.length} valid items`);
+      return validParties;
+    } catch (error) {
+      console.error('❌ Error fetching parties:', error);
+      return [];
+    }
   },
 
   /**

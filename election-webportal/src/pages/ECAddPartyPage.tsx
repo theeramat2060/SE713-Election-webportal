@@ -106,15 +106,18 @@ const ECAddPartyPage: React.FC = () => {
     } catch (err: any) {
       console.error('❌ Error creating party:', err);
       
-      // Extract meaningful error message
+      // Extract meaningful error message with better null-safety
       let errorMessage = 'เกิดข้อผิดพลาดในการสร้างพรรค กรุณาลองใหม่';
       
-      if (err.response?.data?.error) {
-        errorMessage = typeof err.response.data.error === 'string' 
-          ? err.response.data.error 
-          : err.response.data.error.message || errorMessage;
-      } else if (err.message) {
-        errorMessage = err.message;
+      if (err && typeof err === 'object') {
+        if (err.response?.data?.error) {
+          const errorData = err.response.data.error;
+          errorMessage = typeof errorData === 'string' 
+            ? errorData 
+            : (errorData && errorData.message) ? errorData.message : errorMessage;
+        } else if (err.message && typeof err.message === 'string') {
+          errorMessage = err.message;
+        }
       }
       
       console.error('📋 Final error message:', errorMessage);
