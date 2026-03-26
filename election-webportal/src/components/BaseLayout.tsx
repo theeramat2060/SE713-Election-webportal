@@ -67,8 +67,7 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({ children, role = 'public
     ec: [
       { name: 'จัดการพรรคการเมือง', path: '/ec/parties', icon: LayoutDashboard },
       { name: 'จัดการผู้สมัคร', path: '/ec/candidates', icon: User },
-      { name: 'จัดการกล่องลงคะแนน', path: '/ec/ballots', icon: Vote },
-      { name: 'ปิดการลงคะแนน', path: '/ec/close-vote', icon: PieChart },
+      { name: 'ศูนย์ควบคุมการเลือกตั้ง', path: '/ec/ballot', icon: Vote },
       ...(isVotingClosed ? [{ name: 'ผลการเลือกตั้ง', path: '/results', icon: BarChart3, onClick: handleResultsClick }] : []),
     ],
     admin: [

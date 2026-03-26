@@ -84,9 +84,9 @@ export interface Constituency {
   is_closed: boolean;
 }
 
-// ─── Candidate (as returned inside constituency results) ──────────────────────
+// ─── Candidate ────────────────────────────────────────────────────────────────
 
-export interface CandidateResult {
+export interface Candidate {
   id: number;
   title: string;
   first_name: string;
@@ -96,10 +96,14 @@ export interface CandidateResult {
   party_id: number;
   party_name: string;
   party_logo_url: string;
-  /** 0 when constituency is open, real count when closed */
-  vote_count: number;
+  constituency_id: number;
   province: string;
   district_number: number;
+}
+
+export interface CandidateResult extends Candidate {
+  /** 0 when constituency is open, real count when closed */
+  vote_count: number;
   is_closed: boolean;
   constituency?: {
     is_closed: boolean;
@@ -184,6 +188,13 @@ export interface ConstituencyWinner {
   district_number: number;
   total_votes: number;
   winner: DeclareResultsWinner;
+}
+
+export interface ElectionStats {
+  totalRegistered: number;
+  totalVoted: number;
+  userNoVote: number;
+  turnoutPercentage: number;
 }
 
 // ─── Voting ──────────────────────────────────────────────────────────────────

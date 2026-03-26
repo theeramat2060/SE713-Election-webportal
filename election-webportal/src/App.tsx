@@ -12,13 +12,11 @@ import PartiesPage from './pages/PartiesPage'
 import ECPartiesPage from './pages/ECPartiesPage'
 import ECCandidatesPage from './pages/ECCandidatesPage'
 import ECBallotPage from './pages/ECBallotPage'
-import ECCloseVotePage from './pages/ECCloseVotePage'
 import AdminDistrictsPage from './pages/AdminDistrictsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import ECAddPartyPage from './pages/ECAddPartyPage'
 import ECAddCandidatePage from './pages/ECAddCandidatePage'
-import ECBallotsManagementPage from './pages/ECBallotsManagementPage'
 
 function App() {
   return (
@@ -75,16 +73,6 @@ function App() {
           <Route path="/ec/ballot" element={
             <ProtectedRoute allowedRoles={['ec']}>
               <ECBallotPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/ec/ballots" element={
-            <ProtectedRoute allowedRoles={['ec']}>
-              <ECBallotsManagementPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/ec/close-vote" element={
-            <ProtectedRoute allowedRoles={['ec']}>
-              <ECCloseVotePage />
             </ProtectedRoute>
           } />
           

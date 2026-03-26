@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { Modal, ModalFooter } from '../components/Modal';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canManageResource } from '../utils/permissions';
+import { ecApi, CandidatePagination } from '../api/ec';
+import { partiesApi, constituenciesApi } from '../api';
+import type { Candidate, Party, Constituency } from '../api';
 import { 
   Plus, 
   Search, 
@@ -15,59 +19,121 @@ import {
   Filter,
   MoreVertical,
   CheckCircle2,
-  Shield
+  Shield,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Upload
 } from 'lucide-react';
-
-interface Candidate {
-  id: string;
-  number: number;
-  name: string;
-  party: string;
-  district: string;
-  photoUrl: string;
-  platform: string;
-  status: 'Qualified' | 'Pending' | 'Disqualified';
-}
 
 const ECCandidatesPage: React.FC = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<CandidatePagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Edit State
+  const [isEditModalOpen, setIsCloseModalOpen] = useState(false);
+  const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [districts, setDistricts] = useState<Constituency[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Check EC Staff admin-level permissions for candidates
   const candidatePermissions = canManageResource(user?.role || 'voter', 'candidate');
 
-  const candidates: Candidate[] = [
-    {
-      id: "1",
-      number: 1,
-      name: "ดร. สมชาย มั่นคง",
-      party: "พรรคก้าวไกลหน้า",
-      district: "กรุงเทพมหานคร เขต 1",
-      photoUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
-      platform: "มุ่งเน้นการปฏิรูปเศรษฐกิจฐานราก และสร้างโอกาสทางการศึกษาที่เท่าเทียมสำหรับทุกคน",
-      status: "Qualified"
-    },
-    {
-      id: "2",
-      number: 2,
-      name: "นางสาววิไลลักษณ์ ดีศรี",
-      party: "พรรครวมพลังรักษ์โลก",
-      district: "กรุงเทพมหานคร เขต 1",
-      photoUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200",
-      platform: "พลังสะอาดเพื่อสิ่งแวดล้อม และสวัสดิการถ้วนหน้าสำหรับผู้สูงวัยในชุมชนเมือง",
-      status: "Qualified"
-    },
-    {
-      id: "3",
-      number: 3,
-      name: "นายอาคม สมบัติ",
-      party: "พรรคพัฒนาชาติไทย",
-      district: "กรุงเทพมหานคร เขต 2",
-      photoUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200",
-      platform: "สร้างสมาร์ทซิตี้ด้วยเทคโนโลยีสมัยใหม่ ลดความเหลื่อมล้ำด้วยเศรษฐกิจดิจิทัล",
-      status: "Qualified"
+  const fetchCandidates = async (page: number) => {
+    try {
+      setLoading(true);
+      const res = await ecApi.getCandidates(page);
+      if (res.success) {
+        setCandidates(res.data);
+        setPagination(res.pagination);
+      }
+    } catch (err) {
+      console.error('Failed to fetch candidates:', err);
+      setError('ไม่สามารถโหลดข้อมูลผู้สมัครได้');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const fetchDropdownData = async () => {
+    try {
+      const [partiesRes, districtsRes] = await Promise.all([
+        partiesApi.getAll(),
+        constituenciesApi.getAll()
+      ]);
+      setParties(partiesRes);
+      setDistricts(districtsRes);
+    } catch (err) {
+      console.error('Failed to fetch dropdown data:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCandidates(currentPage);
+    fetchDropdownData();
+  }, [currentPage]);
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('คุณต้องการลบผู้สมัครนี้ใช่หรือไม่?')) return;
+    
+    try {
+      await ecApi.deleteCandidate(id);
+      fetchCandidates(currentPage);
+    } catch (err) {
+      console.error('Failed to delete candidate:', err);
+      alert('ไม่สามารถลบข้อมูลผู้สมัครได้');
+    }
+  };
+
+  const handleEditClick = (candidate: Candidate) => {
+    setEditingCandidate(candidate);
+    setIsCloseModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCandidate) return;
+
+    try {
+      setEditLoading(true);
+      const formData = new FormData();
+      formData.append('title', editingCandidate.title);
+      formData.append('first_name', editingCandidate.first_name);
+      formData.append('last_name', editingCandidate.last_name);
+      formData.append('number', editingCandidate.number.toString());
+      formData.append('party_id', editingCandidate.party_id.toString());
+      formData.append('constituency_id', editingCandidate.constituency_id.toString());
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      } else if (editingCandidate.image_url) {
+        formData.append('image_url', editingCandidate.image_url);
+      }
+
+      await ecApi.updateCandidate(editingCandidate.id, formData);
+      setIsCloseModalOpen(false);
+      setEditingCandidate(null);
+      setSelectedFile(null);
+      fetchCandidates(currentPage);
+    } catch (err) {
+      console.error('Failed to update candidate:', err);
+      alert('ไม่สามารถแก้ไขข้อมูลผู้สมัครได้');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const filteredCandidates = candidates.filter(c => 
+    `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.party_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <BaseLayout role="ec">
@@ -115,13 +181,11 @@ const ECCandidatesPage: React.FC = () => {
             <div className="flex gap-2">
               <select className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority">
                 <option>ทุกพรรคการเมือง</option>
-                <option>พรรคก้าวไกลหน้า</option>
-                <option>พรรครวมพลังรักษ์โลก</option>
+                {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <select className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority">
                 <option>ทุกเขตเลือกตั้ง</option>
-                <option>กทม. เขต 1</option>
-                <option>กทม. เขต 2</option>
+                {districts.map(d => <option key={d.id} value={d.id}>{d.province} เขต {d.district_number}</option>)}
               </select>
               <Button variant="outline" className="p-3">
                 <Filter size={20} />
@@ -130,67 +194,221 @@ const ECCandidatesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Candidates Table */}
-        <div className="bg-white rounded-lg border border-surface-border overflow-hidden shadow-card">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-soft border-b border-surface-border">
-              <tr>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary w-16">#</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary">ผู้สมัคร</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary">พรรค / เขต</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary hidden md:table-cell">แนวคิดนโยบาย</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary">สถานะ</th>
-                <th className="px-6 py-4 text-sm font-semibold text-text-secondary text-right">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-border">
-              {candidates.map((candidate) => (
-                <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-text-secondary font-medium">{candidate.number}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <img src={candidate.photoUrl} alt={candidate.name} className="w-10 h-10 rounded-full border border-surface-border object-cover" />
-                      <span className="font-bold text-text-primary">{candidate.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-authority">{candidate.party}</p>
-                      <p className="text-xs text-text-secondary">{candidate.district}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary hidden md:table-cell max-w-sm">
-                    <p className="line-clamp-2">{candidate.platform}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="success" className="flex items-center gap-1 w-fit">
-                      <CheckCircle2 size={12} />
-                      {candidate.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      {candidatePermissions.update && (
-                        <button className="p-2 text-text-secondary hover:text-authority transition-colors" title="แก้ไข">
-                          <Edit2 size={18} />
-                        </button>
-                      )}
-                      {candidatePermissions.delete && (
-                        <button className="p-2 text-text-secondary hover:text-status-error transition-colors" title="ลบ">
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                      <button className="p-2 text-text-secondary" title="ตัวเลือกเพิ่มเติม">
-                        <MoreVertical size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="w-12 h-12 text-authority animate-spin" />
+            <p className="text-text-secondary font-medium">กำลังโหลดข้อมูลผู้สมัคร...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg text-center">
+            <p className="font-bold text-lg mb-2">เกิดข้อผิดพลาด</p>
+            <p>{error}</p>
+            <Button variant="outline" onClick={() => fetchCandidates(currentPage)} className="mt-4">ลองใหม่</Button>
+          </div>
+        ) : (
+          <>
+            {/* Candidates Table */}
+            <div className="bg-white rounded-lg border border-surface-border overflow-hidden shadow-card">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-surface-soft border-b border-surface-border">
+                  <tr>
+                    <th className="px-6 py-4 text-sm font-semibold text-text-secondary w-16">#</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-text-secondary">ผู้สมัคร</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-text-secondary">พรรค / เขต</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-text-secondary">สถานะ</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-text-secondary text-right">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border">
+                  {filteredCandidates.length > 0 ? (
+                    filteredCandidates.map((candidate) => (
+                      <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-text-secondary font-medium">{candidate.number}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <img src={candidate.image_url} alt={candidate.first_name} className="w-10 h-10 rounded-full border border-surface-border object-cover" />
+                            <span className="font-bold text-text-primary">{candidate.title}{candidate.first_name} {candidate.last_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-authority">{candidate.party_name}</p>
+                            <p className="text-xs text-text-secondary">{candidate.province} เขต {candidate.district_number}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="success" className="flex items-center gap-1 w-fit">
+                            <CheckCircle2 size={12} />
+                            Qualified
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {candidatePermissions.update && (
+                              <button 
+                                onClick={() => handleEditClick(candidate)}
+                                className="p-2 text-text-secondary hover:text-authority transition-colors" 
+                                title="แก้ไข"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                            )}
+                            {candidatePermissions.delete && (
+                              <button 
+                                onClick={() => handleDelete(candidate.id)}
+                                className="p-2 text-text-secondary hover:text-status-error transition-colors" 
+                                title="ลบ"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                            <button className="p-2 text-text-secondary" title="ตัวเลือกเพิ่มเติม">
+                              <MoreVertical size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-text-secondary">
+                        ไม่พบข้อมูลผู้สมัคร
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-text-secondary">
+                  แสดงหน้า {pagination.page} จาก {pagination.totalPages} (ทั้งหมด {pagination.total} รายการ)
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    className="flex items-center gap-1"
+                  >
+                    <ChevronLeft size={16} />
+                    ก่อนหน้า
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={currentPage === pagination.totalPages}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="flex items-center gap-1"
+                  >
+                    ถัดไป
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {/* Edit Candidate Modal */}
+      {editingCandidate && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsCloseModalOpen(false)}
+          title="แก้ไขข้อมูลผู้สมัคร"
+          maxWidth="max-w-2xl"
+        >
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="คำนำหน้า"
+                value={editingCandidate.title}
+                onChange={(e) => setEditingCandidate({...editingCandidate, title: e.target.value})}
+                required
+              />
+              <Input
+                label="หมายเลขผู้สมัคร"
+                type="number"
+                value={editingCandidate.number}
+                onChange={(e) => setEditingCandidate({...editingCandidate, number: parseInt(e.target.value)})}
+                required
+              />
+              <Input
+                label="ชื่อ"
+                value={editingCandidate.first_name}
+                onChange={(e) => setEditingCandidate({...editingCandidate, first_name: e.target.value})}
+                required
+              />
+              <Input
+                label="นามสกุล"
+                value={editingCandidate.last_name}
+                onChange={(e) => setEditingCandidate({...editingCandidate, last_name: e.target.value})}
+                required
+              />
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-text-secondary block">พรรคการเมือง</label>
+                <select 
+                  className="w-full h-12 px-4 rounded-lg border border-surface-border bg-white focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority text-sm"
+                  value={editingCandidate.party_id}
+                  onChange={(e) => setEditingCandidate({...editingCandidate, party_id: parseInt(e.target.value)})}
+                  required
+                >
+                  {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-text-secondary block">เขตเลือกตั้ง</label>
+                <select 
+                  className="w-full h-12 px-4 rounded-lg border border-surface-border bg-white focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority text-sm"
+                  value={editingCandidate.constituency_id}
+                  onChange={(e) => setEditingCandidate({...editingCandidate, constituency_id: parseInt(e.target.value)})}
+                  required
+                >
+                  {districts.map(d => <option key={d.id} value={d.id}>{d.province} เขต {d.district_number}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-secondary block">รูปถ่ายผู้สมัคร</label>
+              <div className="flex items-center gap-4">
+                <img src={editingCandidate.image_url} alt="current" className="w-16 h-16 rounded-full border border-surface-border object-cover" />
+                <div className="flex-1">
+                  <input 
+                    type="file" 
+                    id="edit-photo" 
+                    className="hidden" 
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    accept="image/*"
+                  />
+                  <label 
+                    htmlFor="edit-photo"
+                    className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-surface-border rounded-lg hover:border-authority cursor-pointer transition-colors text-sm font-medium text-text-secondary"
+                  >
+                    <Upload size={16} />
+                    {selectedFile ? selectedFile.name : "เปลี่ยนรูปถ่าย"}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <ModalFooter>
+              <Button variant="outline" onClick={() => setIsCloseModalOpen(false)} disabled={editLoading}>
+                ยกเลิก
+              </Button>
+              <Button type="submit" variant="authority" isLoading={editLoading}>
+                บันทึกการเปลี่ยนแปลง
+              </Button>
+            </ModalFooter>
+          </form>
+        </Modal>
+      )}
     </BaseLayout>
   );
 };

@@ -1,5 +1,5 @@
 # API Endpoint Scaffold
-# TODO: Customize for your API framework
+# Customize for your API framework
 
 openapi: "3.0.3"
 info:
@@ -10,13 +10,13 @@ paths:
   /api/v1/resource:
     get:
       summary: "List resources"
-      # TODO: Define parameters and responses
+      # Define parameters and responses here
       responses:
         "200":
           description: "Success"
     post:
       summary: "Create resource"
-      # TODO: Define request body and responses
+      # Define request body and responses here
       responses:
         "201":
           description: "Created"

@@ -5,7 +5,37 @@ import type {
   CloseVotingPayload,
   UpdateVotingPayload,
   ConstituencyWinner,
+  Party,
+  ElectionStats,
+  Candidate,
 } from './types';
+
+export interface PartyPagination {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface PartyListResponse {
+  success: boolean;
+  data: Party[];
+  pagination: PartyPagination;
+}
+
+export interface CandidatePagination {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CandidateListResponse {
+  success: boolean;
+  message?: string;
+  data: Candidate[];
+  pagination: CandidatePagination;
+}
 
 export const ecApi = {
   /**
@@ -62,5 +92,75 @@ export const ecApi = {
       '/ec/declare-results',
     );
     return data.data ?? [];
+  },
+
+  /**
+   * Get overall election statistics
+   * GET /api/ec/election-stats
+   */
+  getElectionStats: async (): Promise<ElectionStats> => {
+    const { data } = await apiClient.get<ApiResponse<ElectionStats>>(
+      '/ec/election-stats',
+    );
+    return data.data!;
+  },
+
+  /**
+   * List all parties with pagination — GET /api/ec/get-all-party
+   */
+  getParties: async (page = 1, pageSize = 10): Promise<PartyListResponse> => {
+    const { data } = await apiClient.get<PartyListResponse>(
+      `/ec/get-all-party?page=${page}&pageSize=${pageSize}`,
+    );
+    return data;
+  },
+
+  /**
+   * Create a new party — POST /api/ec/create-party
+   */
+  createParty: async (formData: FormData): Promise<void> => {
+    await apiClient.post('/ec/create-party', formData);
+  },
+
+  /**
+   * Delete a party — DELETE /api/ec/delete-party/:id
+   */
+  deleteParty: async (id: number): Promise<void> => {
+    await apiClient.delete(`/ec/delete-party/${id}`, {
+      data: { id }, // Backend expects id in body based on ecRoutes.ts
+    });
+  },
+
+  /**
+   * List all candidates with pagination — GET /api/ec/get-all-candidates
+   */
+  getCandidates: async (page = 1, pageSize = 10): Promise<CandidateListResponse> => {
+    const { data } = await apiClient.get<CandidateListResponse>(
+      `/ec/get-all-candidates?page=${page}&pageSize=${pageSize}`,
+    );
+    return data;
+  },
+
+  /**
+   * Add a new candidate — POST /api/ec/AddCandidates
+   */
+  addCandidate: async (formData: FormData): Promise<void> => {
+    await apiClient.post('/ec/AddCandidates', formData);
+  },
+
+  /**
+   * Update a candidate — POST /api/ec/update-candidate/:id
+   */
+  updateCandidate: async (id: number, formData: FormData): Promise<void> => {
+    await apiClient.post(`/ec/update-candidate/${id}`, formData);
+  },
+
+  /**
+   * Delete a candidate — DELETE /api/ec/delete-candidate/:id
+   */
+  deleteCandidate: async (id: number): Promise<void> => {
+    await apiClient.delete(`/ec/delete-candidate/${id}`, {
+      data: { id }, // Backend expects id in body based on ecRoutes.ts
+    });
   },
 };

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ecApi } from '../api';
 
 interface VotingStatus {
   isVotingOpen: boolean;
@@ -10,6 +11,7 @@ interface VotingStatus {
 interface VotingContextType extends VotingStatus {
   closeVoting: (closedBy: string) => void;
   openVoting: () => void;
+  refreshStatus: () => Promise<void>;
 }
 
 const VotingContext = createContext<VotingContextType | undefined>(undefined);
@@ -26,7 +28,20 @@ export const VotingProvider: React.FC<VotingProviderProps> = ({ children }) => {
     closedBy: null,
   });
 
-  // Load voting status from localStorage on mount
+  const refreshStatus = async () => {
+    try {
+      const backendStatus = await ecApi.getVotingStatus();
+      setVotingStatus(prev => ({
+        ...prev,
+        isVotingOpen: !backendStatus.isVotingClosed,
+        isVotingClosed: backendStatus.isVotingClosed,
+      }));
+    } catch (error) {
+      console.error('Could not sync with backend, using local status');
+    }
+  };
+
+  // Load voting status from localStorage on mount and sync with backend
   useEffect(() => {
     const initializeVotingStatus = async () => {
       // First, try to load from localStorage
@@ -43,17 +58,8 @@ export const VotingProvider: React.FC<VotingProviderProps> = ({ children }) => {
         }
       }
 
-      // TODO: Add API call to sync with backend if needed
-      // This could be implemented as:
-      // try {
-      //   const backendStatus = await api.getVotingStatus();
-      //   if (backendStatus !== localStatus) {
-      //     console.log('Syncing voting status with backend...');
-      //     setVotingStatus(backendStatus);
-      //   }
-      // } catch (error) {
-      //   console.log('Could not sync with backend, using local status');
-      // }
+      // Sync with backend
+      await refreshStatus();
     };
 
     initializeVotingStatus();
@@ -87,6 +93,7 @@ export const VotingProvider: React.FC<VotingProviderProps> = ({ children }) => {
       ...votingStatus,
       closeVoting,
       openVoting,
+      refreshStatus,
     }}>
       {children}
     </VotingContext.Provider>

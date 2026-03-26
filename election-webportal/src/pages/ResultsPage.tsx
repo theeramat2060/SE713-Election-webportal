@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
 import { Badge } from '../components/Badge';
-import { Search, Trophy, BarChart3, Users, MapPin, Clock } from 'lucide-react';
+import { Search, Trophy, BarChart3, Users, MapPin, Clock, Loader2, AlertTriangle, LayoutGrid, CheckCircle2 } from 'lucide-react';
 import { Input } from '../components/Input';
+import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { useVoting } from '../context/VotingContext';
-import { ecApi } from '../api';
-import type { ConstituencyWinner } from '../api';
+import { ecApi, partiesApi } from '../api';
+import type { ConstituencyWinner, PartyOverview } from '../api';
 
 const ResultsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const { isVotingClosed } = useVoting();
-  const [district, setDistrict] = useState("กรุงเทพมหานคร เขต 1");
+  const [searchTerm, setSearchTerm] = useState("");
   const [realResults, setRealResults] = useState<ConstituencyWinner[]>([]);
+  const [partyStats, setPartyStats] = useState<PartyOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,16 +27,22 @@ const ResultsPage: React.FC = () => {
 
     try {
       const logPrefix = isFromNavigation ? 'navigation' : 'backup';
-      console.log(`🔄 Calling /ec/declare-results API (${logPrefix} call)...`);
+      console.log(`🔄 Calling Results APIs (${logPrefix} call)...`);
       
-      const results = await ecApi.declareResults();
-      console.log(`✅ Results fetched successfully (${logPrefix}):`, results);
+      const [results, overview] = await Promise.all([
+        ecApi.declareResults(),
+        partiesApi.getOverview()
+      ]);
+      
+      console.log(`✅ Data fetched successfully (${logPrefix})`);
       
       setRealResults(results);
+      setPartyStats(overview);
       setError(null);
       
       // Cache results in localStorage
       localStorage.setItem('electionResults', JSON.stringify(results));
+      localStorage.setItem('partyOverview', JSON.stringify(overview));
       localStorage.setItem('electionResultsTimestamp', new Date().toISOString());
     } catch (err: any) {
       console.error(`❌ Error fetching results (${logPrefix}):`, err);
@@ -52,29 +60,24 @@ const ResultsPage: React.FC = () => {
         return;
       }
 
-      // Check if data was just fetched from navigation
-      const fetchedFromNav = localStorage.getItem('electionResultsFetched');
+      // Check if data was cached
       const cachedResults = localStorage.getItem('electionResults');
+      const cachedPartyOverview = localStorage.getItem('partyOverview');
       const cachedTimestamp = localStorage.getItem('electionResultsTimestamp');
       
-      if (fetchedFromNav && cachedResults) {
-        console.log('📁 Loading fresh results from navigation cache...');
-        setRealResults(JSON.parse(cachedResults));
-        setIsLoading(false);
-        // Clear the flag
-        localStorage.removeItem('electionResultsFetched');
-        return;
-      }
-
-      // Try to load from cache if available and recent
-      if (cachedResults && cachedTimestamp) {
-        const cacheAge = Date.now() - new Date(cachedTimestamp).getTime();
-        // Use cache if it's less than 5 minutes old
-        if (cacheAge < 5 * 60 * 1000) {
-          console.log('📁 Loading results from cache...');
-          setRealResults(JSON.parse(cachedResults));
-          setIsLoading(false);
-          return;
+      if (cachedResults && cachedPartyOverview && cachedTimestamp) {
+        try {
+          const cacheAge = Date.now() - new Date(cachedTimestamp).getTime();
+          // Use cache if it's less than 5 minutes old
+          if (cacheAge < 5 * 60 * 1000) {
+            console.log('📁 Loading results from cache...');
+            setRealResults(JSON.parse(cachedResults));
+            setPartyStats(JSON.parse(cachedPartyOverview));
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse cached results', e);
         }
       }
 
@@ -85,13 +88,25 @@ const ResultsPage: React.FC = () => {
     initializeResults();
   }, [isVotingClosed]);
 
-  // Calculate overall winner and statistics
+  // Calculate overall statistics
   const overallWinner = realResults.length > 0 ? 
     realResults.reduce((prev, current) => 
       current.winner.vote_count > prev.winner.vote_count ? current : prev
     ) : null;
 
   const totalVotes = realResults.reduce((sum, result) => sum + result.total_votes, 0);
+
+  const filteredResults = realResults.filter(r => 
+    r.province.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.winner.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.winner.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.winner.party_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Winning party (party with most seats)
+  const winningParty = partyStats?.parties && partyStats.parties.length > 0 
+    ? partyStats.parties[0] // Sorted by seats in backend
+    : null;
 
   // Determine the layout role based on authentication status
   const layoutRole = isAuthenticated && user ? user.role : 'public';
@@ -101,13 +116,13 @@ const ResultsPage: React.FC = () => {
     return (
       <BaseLayout role={layoutRole}>
         <div className="max-w-4xl mx-auto space-y-8 text-center py-16">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 shadow-sm">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Clock className="w-8 h-8 text-yellow-600" />
               <h1 className="text-2xl font-bold text-yellow-800">ยังไม่สามารถดูผลได้</h1>
             </div>
             <p className="text-yellow-700 text-lg">
-              ผลการเลือกตั้งจะสามารถดูได้เมื่อ EC ประกาศปิดการลงคะแนนเสียงแล้วเท่านั้น
+              ผลการเลือกตั้งจะสามารถดูได้เมื่อ กกต. ประกาศปิดการลงคะแนนเสียงแล้วเท่านั้น
             </p>
           </div>
         </div>
@@ -117,193 +132,226 @@ const ResultsPage: React.FC = () => {
 
   return (
     <BaseLayout role={layoutRole}>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8 pb-12">
         {/* Loading State */}
         {isLoading && (
-          <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-democracy mx-auto mb-4"></div>
-            <p className="text-text-secondary">กำลังประกาศผลการเลือกตั้ง...</p>
+          <div className="text-center py-20 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="w-12 h-12 text-democracy animate-spin" />
+            <p className="text-text-secondary font-medium text-lg">กำลังประมวลผลและประกาศผลการเลือกตั้ง...</p>
           </div>
         )}
 
         {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-            <div className="text-red-600 mb-2">⚠️</div>
-            <h2 className="text-lg font-bold text-red-800 mb-2">เกิดข้อผิดพลาด</h2>
-            <p className="text-red-700">{error}</p>
+        {!isLoading && error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center shadow-sm">
+            <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-red-800 mb-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</h2>
+            <p className="text-red-700 mb-6">{error}</p>
+            <Button variant="outline" onClick={() => fetchResults(false)}>ลองใหม่อีกครั้ง</Button>
           </div>
         )}
 
         {/* Results Content */}
         {!isLoading && !error && (
           <>
-            {/* Header & Selector */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            {/* Header & Search */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-text-primary">รายงานผลการเลือกตั้ง</h1>
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <MapPin className="w-4 h-4" />
-                  <span>ผลรวมทุกเขต ({realResults.length} เขต)</span>
-              <Badge variant={isClosed ? "error" : "success"} className="ml-2">
-                {isClosed ? "หีบปิดแล้ว" : "กำลังนับคะแนน"}
-              </Badge>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <div className="w-64">
-              <Input 
-                placeholder="ค้นหาเขตเลือกตั้ง..." 
-                icon={<Search className="w-4 h-4" />}
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Winner Showcase */}
-        {overallWinner && (
-          <div className="relative overflow-hidden bg-white border-2 border-yellow-400 rounded-lg p-6 shadow-elevation">
-            <div className="absolute top-0 right-0 p-4">
-              <div className="flex items-center gap-1 text-yellow-600 font-bold bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
-                <Trophy className="w-4 h-4" />
-                <span>ผู้ได้คะแนนสูงสุด</span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col md:flex-row gap-6 items-center">
-              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-yellow-100 text-4xl">
-                👨‍💼
-              </div>
-              <div className="text-center md:text-left space-y-2">
-                <h2 className="text-2xl font-bold text-text-primary">
-                  {overallWinner.winner.title}{overallWinner.winner.first_name} {overallWinner.winner.last_name}
-                </h2>
-                <div className="flex items-center justify-center md:justify-start gap-2">
-                  {overallWinner.winner.party_logo_url && (
-                    <img src={overallWinner.winner.party_logo_url} className="w-6 h-6 rounded" alt="party" />
-                  )}
-                  <span className="text-democracy font-medium">{overallWinner.winner.party_name}</span>
-                </div>
-                <p className="text-sm text-text-secondary">{overallWinner.province} เขต {overallWinner.district_number}</p>
-                <div className="flex gap-8 mt-4">
-                  <div>
-                    <p className="text-sm text-text-secondary">คะแนนในเขต</p>
-                    <p className="text-xl font-bold text-text-primary">{overallWinner.winner.vote_count.toLocaleString()} คะแนน</p>
+                <h1 className="text-3xl font-bold text-text-primary">รายงานผลการเลือกตั้งอย่างเป็นทางการ</h1>
+                <div className="flex items-center flex-wrap gap-2 text-text-secondary">
+                  <div className="flex items-center gap-1 bg-surface-soft px-3 py-1 rounded-full border border-surface-border">
+                    <MapPin className="w-3 h-3 text-democracy" />
+                    <span className="text-xs font-bold">สรุปผล 400 เขตเลือกตั้ง</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-text-secondary">สัดส่วนในเขต</p>
-                    <p className="text-xl font-bold text-democracy">
-                      {overallWinner.total_votes > 0 ? 
-                        ((overallWinner.winner.vote_count / overallWinner.total_votes) * 100).toFixed(1) : '0'
-                      }%
-                    </p>
-                  </div>
+                  <Badge variant="error" className="px-3 py-1 font-bold">หีบปิดแล้ว</Badge>
                 </div>
               </div>
+              
+              <div className="w-full md:w-72">
+                <Input 
+                  placeholder="ค้นหาเขต, จังหวัด หรือพรรค..." 
+                  icon={<Search size={18} />}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Results by District */}
-        <div className="bg-white rounded-lg border border-surface-border overflow-hidden">
-          <div className="p-4 bg-surface-soft border-b border-surface-border">
-            <h3 className="font-bold text-text-primary flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              ผลการเลือกตั้งแต่ละเขต ({realResults.length} เขต)
-            </h3>
-          </div>
-          <div className="divide-y divide-surface-border">
-            {realResults.length > 0 ? (
-              realResults.map((result, index) => (
-                <div key={result.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                  <div className="w-8 text-center font-bold text-text-secondary">
-                    #{index + 1}
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl">
-                    👨‍💼
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-text-primary truncate">
-                      {result.winner.title}{result.winner.first_name} {result.winner.last_name}
-                    </p>
-                    <p className="text-sm text-text-secondary truncate">
-                      {result.winner.party_name} • {result.province} เขต {result.district_number}
-                    </p>
-                  </div>
-                  <div className="hidden md:block w-48">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>{result.winner.vote_count.toLocaleString()} คะแนน</span>
-                      <span className="font-bold">
-                        {result.total_votes > 0 ? 
-                          ((result.winner.vote_count / result.total_votes) * 100).toFixed(1) : '0'
-                        }%
-                      </span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column: Party Standings & Top Winner */}
+              <div className="lg:col-span-1 space-y-8">
+                {/* Winner Party Card */}
+                {winningParty && (
+                  <div className="bg-democracy text-white rounded-2xl p-6 shadow-elevation relative overflow-hidden group">
+                    <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <Trophy size={120} />
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div 
-                        className="bg-democracy h-2 rounded-full transition-all duration-1000" 
-                        style={{ 
-                          width: `${result.total_votes > 0 ? 
-                            ((result.winner.vote_count / result.total_votes) * 100) : 0
-                          }%` 
-                        }}
-                      />
+                    <div className="relative z-10 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Trophy size={20} className="text-yellow-400" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-white/80">พรรคที่ได้ที่นั่งสูงสุด</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-2 shadow-inner">
+                          <img src={winningParty.logoUrl} className="w-full h-full object-contain" alt={winningParty.name} />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black leading-tight">{winningParty.name}</h2>
+                          <p className="text-white/80 font-bold">{winningParty.seats} ที่นั่ง (สส.เขต)</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="font-bold text-text-primary">
-                      {result.total_votes > 0 ? 
-                        ((result.winner.vote_count / result.total_votes) * 100).toFixed(1) : '0'
-                      }%
-                    </p>
-                    <p className="text-xs text-text-secondary">{result.total_votes.toLocaleString()} คะแนนทั้งหมด</p>
+                )}
+
+                {/* Party Standings List */}
+                <div className="bg-white rounded-2xl border border-surface-border shadow-card overflow-hidden">
+                  <div className="p-4 bg-surface-soft border-b border-surface-border flex items-center justify-between">
+                    <h3 className="font-bold text-text-primary flex items-center gap-2 text-sm">
+                      <LayoutGrid size={16} className="text-democracy" />
+                      จำนวนที่นั่งรายพรรค
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-surface-border">
+                    {partyStats?.parties.map((party, idx) => (
+                      <div key={party.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-text-secondary w-4">{idx + 1}</span>
+                          <img src={party.logoUrl} className="w-8 h-8 rounded object-contain border border-surface-border" alt={party.name} />
+                          <span className="text-sm font-bold text-text-primary">{party.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-black text-democracy">{party.seats}</span>
+                          <span className="text-[10px] font-bold text-text-secondary uppercase">ที่นั่ง</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="p-8 text-center text-text-secondary">
-                ไม่พบข้อมูลผลการเลือกตั้ง
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-600 mb-2">
-              <Users className="w-4 h-4" />
-              <span className="text-sm font-medium">เขตที่ประกาศผล</span>
+                {/* Highest Votes Individual */}
+                {overallWinner && (
+                  <div className="bg-surface-soft rounded-2xl border border-surface-border p-6 space-y-4">
+                    <h3 className="font-bold text-text-primary flex items-center gap-2 text-sm">
+                      <Users size={16} className="text-democracy" />
+                      ผู้สมัครที่ได้รับคะแนนสูงสุด
+                    </h3>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl shadow-sm">👨‍💼</div>
+                      <div>
+                        <p className="font-bold text-text-primary leading-tight">
+                          {overallWinner.winner.title}{overallWinner.winner.first_name} {overallWinner.winner.last_name}
+                        </p>
+                        <p className="text-xs text-democracy font-bold">{overallWinner.winner.party_name}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-surface-border flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] text-text-secondary font-bold uppercase">ยอดคะแนน</p>
+                        <p className="text-lg font-black text-text-primary">{overallWinner.winner.vote_count.toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-text-secondary font-bold uppercase">เขตพื้นที่</p>
+                        <p className="text-xs font-bold text-text-primary">{overallWinner.province} เขต {overallWinner.district_number}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Detailed District Results */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-2xl border border-surface-border shadow-card overflow-hidden">
+                  <div className="p-6 border-b border-surface-border bg-surface-soft flex items-center justify-between">
+                    <h3 className="font-bold text-text-primary flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-democracy" />
+                      ผลการเลือกตั้งรายเขต ({filteredResults.length} เขต)
+                    </h3>
+                  </div>
+                  
+                  <div className="divide-y divide-surface-border">
+                    {filteredResults.length > 0 ? (
+                      filteredResults.map((result, index) => (
+                        <div key={result.id} className="p-6 flex flex-col sm:flex-row sm:items-center gap-6 hover:bg-gray-50 transition-colors group">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl border-2 border-white shadow-sm overflow-hidden">
+                              👨‍💼
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-text-primary text-lg truncate group-hover:text-democracy transition-colors">
+                                {result.winner.title}{result.winner.first_name} {result.winner.last_name}
+                              </p>
+                              <div className="flex items-center flex-wrap gap-2 mt-0.5">
+                                <span className="text-xs font-black text-democracy bg-democracy-light/10 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <img src={result.winner.party_logo_url} className="w-3 h-3 object-contain" alt="" />
+                                  {result.winner.party_name}
+                                </span>
+                                <span className="text-xs text-text-secondary font-bold">
+                                  {result.province} เขต {result.district_number}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6 sm:w-64">
+                            <div className="flex-1">
+                              <div className="flex justify-between text-[10px] mb-1">
+                                <span className="font-bold text-text-secondary">{result.winner.vote_count.toLocaleString()} คะแนน</span>
+                                <span className="font-black text-democracy">
+                                  {result.total_votes > 0 ? 
+                                    ((result.winner.vote_count / result.total_votes) * 100).toFixed(1) : '0'
+                                  }%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-1.5 shadow-inner">
+                                <div 
+                                  className="bg-democracy h-full rounded-full transition-all duration-1000 shadow-sm" 
+                                  style={{ 
+                                    width: `${result.total_votes > 0 ? 
+                                      ((result.winner.vote_count / result.total_votes) * 100) : 0
+                                    }%` 
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-right whitespace-nowrap">
+                              <p className="font-black text-democracy text-lg">
+                                {result.total_votes > 0 ? 
+                                  ((result.winner.vote_count / result.total_votes) * 100).toFixed(1) : '0'
+                                }%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-16 text-center">
+                        <Search className="w-12 h-12 text-text-secondary opacity-20 mx-auto mb-4" />
+                        <p className="text-text-secondary font-medium">ไม่พบข้อมูลที่ตรงกับการค้นหา</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Global Stats Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl shadow-sm flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">จำนวนผู้มาใช้สิทธิรวม</p>
+                      <p className="text-3xl font-black text-blue-900">{totalVotes.toLocaleString()}</p>
+                    </div>
+                    <Users className="text-blue-200 w-12 h-12" />
+                  </div>
+                  <div className="p-6 bg-green-50 border border-green-100 rounded-2xl shadow-sm flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">เขตที่รายงานผลสำเร็จ</p>
+                      <p className="text-3xl font-black text-green-900">{realResults.length} / 400</p>
+                    </div>
+                    <CheckCircle2 className="text-green-200 w-12 h-12" />
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-blue-900">{realResults.length}</p>
-            <p className="text-xs text-blue-700">เขตการเลือกตั้ง</p>
-          </div>
-          
-          <div className="p-4 bg-green-50 border border-green-100 rounded-lg">
-            <div className="flex items-center gap-2 text-green-600 mb-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="text-sm font-medium">คะแนนรวมทั้งหมด</span>
-            </div>
-            <p className="text-2xl font-bold text-green-900">{totalVotes.toLocaleString()}</p>
-            <p className="text-xs text-green-700">คะแนนเสียง</p>
-          </div>
-          
-          <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-600 mb-2">
-              <Trophy className="w-4 h-4" />
-              <span className="text-sm font-medium">คะแนนสูงสุด</span>
-            </div>
-            <p className="text-2xl font-bold text-yellow-900">
-              {overallWinner?.winner.vote_count.toLocaleString() || '0'}
-            </p>
-            <p className="text-xs text-yellow-700">
-              {overallWinner ? `${overallWinner.province} เขต ${overallWinner.district_number}` : 'ไม่พบข้อมูล'}
-            </p>
-          </div>
-        </div>
           </>
         )}
       </div>

@@ -1,38 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BaseLayout } from '../components/BaseLayout';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Alert } from '../components/Alert';
 import { ArrowLeft, Upload, Save, UserPlus, Info } from 'lucide-react';
+import { partiesApi, constituenciesApi } from '../api';
+import { ecApi } from '../api/ec';
+import type { Party, Constituency } from '../api';
 
 const ECAddCandidatePage: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
+  const [parties, setParties] = useState<Party[]>([]);
+  const [districts, setDistricts] = useState<Constituency[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
+    title: '',
+    first_name: '',
+    last_name: '',
     number: '',
-    fullName: '',
-    partyId: '',
-    districtId: '',
-    platform: '',
+    party_id: '',
+    constituency_id: '',
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [partiesRes, districtsRes] = await Promise.all([
+          partiesApi.getAll(),
+          constituenciesApi.getAll()
+        ]);
+        setParties(partiesRes);
+        setDistricts(districtsRes);
+      } catch (err) {
+        console.error('Failed to fetch dropdown data:', err);
+        setError('ไม่สามารถโหลดข้อมูลพื้นฐานได้');
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-    // Mock API call to save candidate
-    setTimeout(() => {
-      setIsLoading(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setError('กรุณาอัปโหลดรูปภาพผู้สมัคร');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const data = new FormData();
+      data.append('title', formData.title);
+      data.append('first_name', formData.first_name);
+      data.append('last_name', formData.last_name);
+      data.append('number', formData.number);
+      data.append('party_id', formData.party_id);
+      data.append('constituency_id', formData.constituency_id);
+      data.append('file', selectedFile);
+
+      await ecApi.addCandidate(data);
+      
       setSuccess(true);
       setTimeout(() => navigate('/ec/candidates'), 2000);
-    }, 1500);
+    } catch (err: any) {
+      console.error('Error adding candidate:', err);
+      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,29 +121,59 @@ const ECAddCandidatePage: React.FC = () => {
           />
         )}
 
+        {error && (
+          <Alert 
+            type="error" 
+            message={error} 
+            className="mb-8 animate-in fade-in slide-in-from-top-4"
+          />
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Form Card */}
           <div className="card p-8 bg-white space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
+                <Input 
+                  id="title"
+                  name="title"
+                  label="คำนำหน้า"
+                  placeholder="นาย/นาง/นส."
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
                 <Input 
                   id="number"
                   name="number"
                   type="number"
-                  label="หมายเลขผู้สมัคร"
+                  label="หมายเลข"
                   placeholder="เช่น 1"
                   value={formData.number}
                   onChange={handleChange}
                   required
                 />
               </div>
-              <div className="md:col-span-9">
+              <div className="md:col-span-4">
                 <Input 
-                  id="fullName"
-                  name="fullName"
-                  label="ชื่อ-นามสกุล (ไม่ต้องมีคำนำหน้า)"
-                  placeholder="เช่น สมชาย ใจมั่นคง"
-                  value={formData.fullName}
+                  id="first_name"
+                  name="first_name"
+                  label="ชื่อ"
+                  placeholder="เช่น สมชาย"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="md:col-span-4">
+                <Input 
+                  id="last_name"
+                  name="last_name"
+                  label="นามสกุล"
+                  placeholder="เช่น ใจมั่นคง"
+                  value={formData.last_name}
                   onChange={handleChange}
                   required
                 />
@@ -93,62 +182,54 @@ const ECAddCandidatePage: React.FC = () => {
               <div className="md:col-span-6">
                 <label className="text-sm font-medium text-text-secondary mb-2 block">พรรคการเมืองที่สังกัด</label>
                 <select 
-                  name="partyId"
+                  name="party_id"
                   className="w-full h-12 px-4 rounded-lg border border-surface-border bg-white focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority text-sm"
-                  value={formData.partyId}
+                  value={formData.party_id}
                   onChange={handleChange}
                   required
                 >
                   <option value="">เลือกพรรคการเมือง</option>
-                  <option value="1">พรรคก้าวไกลหน้า</option>
-                  <option value="2">พรรครวมพลังรักษ์โลก</option>
-                  <option value="3">พรรคพัฒนาชาติไทย</option>
+                  {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
 
               <div className="md:col-span-6">
                 <label className="text-sm font-medium text-text-secondary mb-2 block">เขตพื้นที่เลือกตั้ง</label>
                 <select 
-                  name="districtId"
+                  name="constituency_id"
                   className="w-full h-12 px-4 rounded-lg border border-surface-border bg-white focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority text-sm"
-                  value={formData.districtId}
+                  value={formData.constituency_id}
                   onChange={handleChange}
                   required
                 >
                   <option value="">เลือกเขตพื้นที่</option>
-                  <option value="1">กรุงเทพมหานคร เขต 1</option>
-                  <option value="2">กรุงเทพมหานคร เขต 2</option>
-                  <option value="3">เชียงใหม่ เขต 1</option>
+                  {districts.map(d => <option key={d.id} value={d.id}>{d.province} เขต {d.district_number}</option>)}
                 </select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">แนวคิดและนโยบายหาเสียง (Statement/Platform)</label>
-              <textarea 
-                name="platform"
-                rows={4}
-                className="w-full px-4 py-3 rounded-lg border border-surface-border focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority transition-all resize-none"
-                placeholder="ระบุแนวคิดสำคัญที่คุณต้องการสื่อสารกับผู้ลงคะแนน..."
-                value={formData.platform}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            {/* Mock Photo Upload */}
-            <div className="space-y-2">
               <label className="text-sm font-medium text-text-secondary">รูปถ่ายผู้สมัคร (Official Photo)</label>
-              <div className="flex flex-col md:flex-row gap-6 items-center p-6 bg-surface-soft rounded-xl border-2 border-dashed border-surface-border group hover:border-authority transition-all cursor-pointer">
-                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-card border border-surface-border group-hover:scale-110 transition-transform flex-shrink-0">
-                  <UserPlus className="w-10 h-10 text-authority" />
+              <div className="flex flex-col md:flex-row gap-6 items-center p-6 bg-surface-soft rounded-xl border-2 border-dashed border-surface-border group hover:border-authority transition-all cursor-pointer relative">
+                <input 
+                  type="file" 
+                  className="absolute inset-0 opacity-0 cursor-pointer" 
+                  onChange={handleFileChange}
+                  accept="image/*"
+                />
+                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-card border border-surface-border group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden">
+                  {previewUrl ? (
+                    <img src={previewUrl} className="w-full h-full object-cover" alt="preview" />
+                  ) : (
+                    <UserPlus className="w-10 h-10 text-authority" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-bold text-text-primary">คลิกหรือลากไฟล์รูปภาพมาวางที่นี่</p>
                   <p className="text-xs text-text-secondary mt-1">ไฟล์ PNG, JPG อัตราส่วน 1:1 ขนาดไม่เกิน 5MB</p>
                   <div className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-authority bg-white px-3 py-1.5 rounded-full border border-authority/20 shadow-sm">
                     <Upload className="w-3 h-3" />
-                    อัปโหลดรูปภาพ
+                    {selectedFile ? selectedFile.name : "อัปโหลดรูปภาพ"}
                   </div>
                 </div>
               </div>
