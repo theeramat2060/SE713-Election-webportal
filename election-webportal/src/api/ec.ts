@@ -119,7 +119,11 @@ export const ecApi = {
    * Create a new party — POST /api/ec/create-party
    */
   createParty: async (formData: FormData): Promise<void> => {
-    await apiClient.post('/ec/create-party', formData);
+    await apiClient.post('/ec/create-party', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
 
   /**
@@ -134,10 +138,12 @@ export const ecApi = {
   /**
    * List all candidates with pagination — GET /api/ec/get-all-candidates
    */
-  getCandidates: async (page = 1, pageSize = 10): Promise<CandidateListResponse> => {
-    const { data } = await apiClient.get<CandidateListResponse>(
-      `/ec/get-all-candidates?page=${page}&pageSize=${pageSize}`,
-    );
+  getCandidates: async (page = 1, pageSize = 10, search = '', partyId?: string, constituencyId?: string): Promise<CandidateListResponse> => {
+    let url = `/ec/get-all-candidates?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`;
+    if (partyId) url += `&partyId=${partyId}`;
+    if (constituencyId) url += `&constituencyId=${constituencyId}`;
+    
+    const { data } = await apiClient.get<CandidateListResponse>(url);
     return data;
   },
 
@@ -145,14 +151,22 @@ export const ecApi = {
    * Add a new candidate — POST /api/ec/AddCandidates
    */
   addCandidate: async (formData: FormData): Promise<void> => {
-    await apiClient.post('/ec/AddCandidates', formData);
+    await apiClient.post('/ec/AddCandidates', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
 
   /**
    * Update a candidate — POST /api/ec/update-candidate/:id
    */
   updateCandidate: async (id: number, formData: FormData): Promise<void> => {
-    await apiClient.post(`/ec/update-candidate/${id}`, formData);
+    await apiClient.post(`/ec/update-candidate/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
 
   /**

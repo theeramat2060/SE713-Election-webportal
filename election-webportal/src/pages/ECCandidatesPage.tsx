@@ -29,6 +29,8 @@ import {
 const ECCandidatesPage: React.FC = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPartyId, setSelectedPartyId] = useState("");
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ const ECCandidatesPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Edit State
-  const [isEditModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [parties, setParties] = useState<Party[]>([]);
@@ -49,7 +51,7 @@ const ECCandidatesPage: React.FC = () => {
   const fetchCandidates = async (page: number) => {
     try {
       setLoading(true);
-      const res = await ecApi.getCandidates(page);
+      const res = await ecApi.getCandidates(page, 10, searchTerm, selectedPartyId, selectedDistrictId);
       if (res.success) {
         setCandidates(res.data);
         setPagination(res.pagination);
@@ -78,7 +80,7 @@ const ECCandidatesPage: React.FC = () => {
   useEffect(() => {
     fetchCandidates(currentPage);
     fetchDropdownData();
-  }, [currentPage]);
+  }, [currentPage, searchTerm, selectedPartyId, selectedDistrictId]);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('คุณต้องการลบผู้สมัครนี้ใช่หรือไม่?')) return;
@@ -94,22 +96,29 @@ const ECCandidatesPage: React.FC = () => {
 
   const handleEditClick = (candidate: Candidate) => {
     setEditingCandidate(candidate);
-    setIsCloseModalOpen(true);
+    setIsEditModalOpen(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCandidate) return;
 
+    console.log('📝 Submitting candidate update:', {
+      id: editingCandidate.id,
+      party_id: editingCandidate.party_id,
+      constituency_id: editingCandidate.constituency_id,
+      party_type: typeof editingCandidate.party_id
+    });
+
     try {
       setEditLoading(true);
       const formData = new FormData();
-      formData.append('title', editingCandidate.title);
-      formData.append('first_name', editingCandidate.first_name);
-      formData.append('last_name', editingCandidate.last_name);
-      formData.append('number', editingCandidate.number.toString());
-      formData.append('party_id', editingCandidate.party_id.toString());
-      formData.append('constituency_id', editingCandidate.constituency_id.toString());
+      formData.append('title', editingCandidate.title || '');
+      formData.append('first_name', editingCandidate.first_name || '');
+      formData.append('last_name', editingCandidate.last_name || '');
+      formData.append('number', String(editingCandidate.number ?? ''));
+      formData.append('party_id', String(editingCandidate.party_id ?? ''));
+      formData.append('constituency_id', String(editingCandidate.constituency_id ?? ''));
       
       if (selectedFile) {
         formData.append('file', selectedFile);
@@ -118,22 +127,18 @@ const ECCandidatesPage: React.FC = () => {
       }
 
       await ecApi.updateCandidate(editingCandidate.id, formData);
-      setIsCloseModalOpen(false);
+      setIsEditModalOpen(false);
       setEditingCandidate(null);
       setSelectedFile(null);
       fetchCandidates(currentPage);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update candidate:', err);
-      alert('ไม่สามารถแก้ไขข้อมูลผู้สมัครได้');
+      const errorMsg = err.response?.data?.error || err.message || 'ไม่สามารถแก้ไขข้อมูลผู้สมัครได้';
+      alert(`ไม่สามารถแก้ไขข้อมูลผู้สมัครได้: ${errorMsg}`);
     } finally {
       setEditLoading(false);
     }
   };
-
-  const filteredCandidates = candidates.filter(c => 
-    `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.party_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <BaseLayout role="ec">
@@ -179,15 +184,38 @@ const ECCandidatesPage: React.FC = () => {
               />
             </div>
             <div className="flex gap-2">
-              <select className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority">
-                <option>ทุกพรรคการเมือง</option>
+              <select 
+                className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority"
+                value={selectedPartyId}
+                onChange={(e) => {
+                  setSelectedPartyId(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">ทุกพรรคการเมือง</option>
                 {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <select className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority">
-                <option>ทุกเขตเลือกตั้ง</option>
+              <select 
+                className="px-4 h-12 rounded border border-surface-border bg-surface text-sm focus:outline-none focus:ring-1 focus:ring-authority"
+                value={selectedDistrictId}
+                onChange={(e) => {
+                  setSelectedDistrictId(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">ทุกเขตเลือกตั้ง</option>
                 {districts.map(d => <option key={d.id} value={d.id}>{d.province} เขต {d.district_number}</option>)}
               </select>
-              <Button variant="outline" className="p-3">
+              <Button 
+                variant="outline" 
+                className="p-3"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedPartyId("");
+                  setSelectedDistrictId("");
+                  setCurrentPage(1);
+                }}
+              >
                 <Filter size={20} />
               </Button>
             </div>
@@ -220,8 +248,8 @@ const ECCandidatesPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border">
-                  {filteredCandidates.length > 0 ? (
-                    filteredCandidates.map((candidate) => (
+                  {candidates.length > 0 ? (
+                    candidates.map((candidate) => (
                       <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 text-text-secondary font-medium">{candidate.number}</td>
                         <td className="px-6 py-4">
@@ -318,7 +346,7 @@ const ECCandidatesPage: React.FC = () => {
       {editingCandidate && (
         <Modal
           isOpen={isEditModalOpen}
-          onClose={() => setIsCloseModalOpen(false)}
+          onClose={() => setIsEditModalOpen(false)}
           title="แก้ไขข้อมูลผู้สมัคร"
           maxWidth="max-w-2xl"
         >
@@ -399,7 +427,7 @@ const ECCandidatesPage: React.FC = () => {
             </div>
 
             <ModalFooter>
-              <Button variant="outline" onClick={() => setIsCloseModalOpen(false)} disabled={editLoading}>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={editLoading}>
                 ยกเลิก
               </Button>
               <Button type="submit" variant="authority" isLoading={editLoading}>
