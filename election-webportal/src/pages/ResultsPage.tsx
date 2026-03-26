@@ -25,8 +25,8 @@ const ResultsPage: React.FC = () => {
       return;
     }
 
+    const logPrefix = isFromNavigation ? 'navigation' : 'backup';
     try {
-      const logPrefix = isFromNavigation ? 'navigation' : 'backup';
       console.log(`🔄 Calling Results APIs (${logPrefix} call)...`);
       
       const [results, overview] = await Promise.all([

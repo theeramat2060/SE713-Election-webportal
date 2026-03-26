@@ -197,6 +197,39 @@ export interface ElectionStats {
   turnoutPercentage: number;
 }
 
+// ─── Election Status ─────────────────────────────────────────────────────────
+
+export interface ElectionStatusConstituency extends Constituency {
+  candidateCount: number;
+  winner?: {
+    name: string;
+    partyName: string;
+    votes: number;
+  };
+}
+
+export type ElectionStatusResponse = ApiResponse<ElectionStatusConstituency[]>;
+
+export interface ElectionStatusSummary {
+  isVotingClosed: boolean;
+  openConstituencies: number;
+  closedConstituencies: number;
+  totalConstituencies: number;
+  constituencies?: ElectionStatusConstituency[];
+}
+
+export type ElectionStatusSummaryResponse = ApiResponse<ElectionStatusSummary>;
+
+// ─── Party Payloads ──────────────────────────────────────────────────────────
+
+export interface CreatePartyPayload {
+  name: string;
+  policy: string;
+  logo_url?: string;
+}
+
+export type DeclareResultsResponse = ApiResponse<ConstituencyWinner[]>;
+
 // ─── Voting ──────────────────────────────────────────────────────────────────
 
 export interface VotePayload {

@@ -27,6 +27,7 @@ export type {
   AdminLoginPayload,
   // Constituency
   Constituency,
+  Candidate,
   CandidateResult,
   ConstituencyResults,
   // Party
@@ -35,11 +36,19 @@ export type {
   PartyDetails,
   PartyOverviewItem,
   PartyOverview,
+  CreatePartyPayload,
   // EC
   CloseVotingPayload,
   UpdateVotingPayload,
   DeclareResultsWinner,
   ConstituencyWinner,
+  DeclareResultsResponse,
+  ElectionStats,
+  // Election Status
+  ElectionStatusSummary,
+  ElectionStatusSummaryResponse,
+  ElectionStatusConstituency,
+  ElectionStatusResponse,
   // Voting
   VotePayload,
 } from './types';
