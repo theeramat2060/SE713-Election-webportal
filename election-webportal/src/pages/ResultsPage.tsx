@@ -275,7 +275,7 @@ const ResultsPage: React.FC = () => {
                         <div key={result.id} className="p-6 flex flex-col sm:flex-row sm:items-center gap-6 hover:bg-gray-50 transition-colors group">
                           <div className="flex items-center gap-4 flex-1">
                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl border-2 border-white shadow-sm overflow-hidden">
-                              👨‍💼
+                              <img src={result.winner.image_url} alt={result.winner.first_name} className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-text-primary text-lg truncate group-hover:text-democracy transition-colors">

@@ -132,13 +132,19 @@ const PartiesPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {party.candidates && party.candidates.length > 0 ? (
                             party.candidates.map((candidate) => (
-                              <div key={candidate.id} className="p-3 bg-surface-soft rounded border border-surface-border flex flex-col gap-1">
-                                <span className="font-medium text-text-primary">
-                                  {candidate.title}{candidate.first_name} {candidate.last_name}
-                                </span>
-                                <span className="text-xs px-2 py-1 bg-white rounded-full border border-surface-border text-text-secondary w-fit">
-                                  {candidate.province} เขต {candidate.district_number}
-                                </span>
+                              <div key={candidate.id} className="p-3 bg-surface-soft rounded border border-surface-border flex flex-col gap-2">
+                                {/* Candidate Photo */}
+                                <div className="flex items-center gap-3">
+                                  <img src={candidate.image_url} alt={candidate.first_name} className="w-12 h-12 rounded-full object-cover border border-surface-border" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-text-primary block truncate">
+                                      {candidate.title}{candidate.first_name} {candidate.last_name}
+                                    </span>
+                                    <span className="text-xs text-text-secondary">
+                                      {candidate.province} เขต {candidate.district_number}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             ))
                           ) : (

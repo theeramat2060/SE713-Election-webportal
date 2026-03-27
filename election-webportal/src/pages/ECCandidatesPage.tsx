@@ -260,7 +260,10 @@ const ECCandidatesPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
-                            <p className="text-sm font-medium text-authority">{candidate.party_name}</p>
+                            <div className="flex items-center gap-2">
+                              <img src={candidate.party_logo_url} alt={candidate.party_name} className="w-5 h-5 object-contain rounded" />
+                              <p className="text-sm font-medium text-authority">{candidate.party_name}</p>
+                            </div>
                             <p className="text-xs text-text-secondary">{candidate.province} เขต {candidate.district_number}</p>
                           </div>
                         </td>

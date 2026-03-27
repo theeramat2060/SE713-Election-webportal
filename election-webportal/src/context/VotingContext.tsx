@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ecApi, electionApi } from '../api';
+import { ecApi, electionApi, constituenciesApi } from '../api';
 import type { ElectionStatusSummary, ElectionStatusConstituency } from '../api';
 
 interface VotingStatus {
@@ -42,27 +42,44 @@ export const VotingProvider: React.FC<VotingProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // 1. Sync global status from EC API
-      const backendStatus = await ecApi.getVotingStatus();
+      // 1. Fetch all constituencies to determine voting status
+      const allConstituencies = await constituenciesApi.getAll();
+      setConstituencies(allConstituencies as ElectionStatusConstituency[]);
+      
+      // 2. Calculate if voting is globally closed
+      // Voting is closed only if ALL constituencies are closed
+      const allClosed = allConstituencies.length > 0 && 
+        allConstituencies.every(c => c.is_closed === true);
+      
       setVotingStatus(prev => ({
         ...prev,
-        isVotingOpen: !backendStatus.isVotingClosed,
-        isVotingClosed: backendStatus.isVotingClosed,
+        isVotingOpen: !allClosed,
+        isVotingClosed: allClosed,
+        // Preserve closedAt and closedBy if already set
+        closedAt: allClosed && !prev.closedAt ? new Date() : prev.closedAt,
+        closedBy: allClosed && !prev.closedBy ? 'System' : prev.closedBy,
       }));
 
-      // 2. Sync detailed status summary from Election API
-      const summary = await electionApi.getElectionStatusSummary();
-      setStatusSummary(summary);
-      
-      if (summary.constituencies) {
-        setConstituencies(summary.constituencies);
-      } else {
-        // Fallback to detailed endpoint if not in summary
-        const detailed = await electionApi.getElectionStatus();
-        setConstituencies(detailed);
+      // 3. Also fetch detailed status summary if available
+      try {
+        const summary = await electionApi.getElectionStatusSummary();
+        setStatusSummary(summary);
+      } catch (summaryError) {
+        console.warn('Could not fetch election status summary:', summaryError);
       }
     } catch (error) {
-      console.error('Could not sync with backend, using local status');
+      console.error('Could not sync voting status from constituencies:', error);
+      // Fallback: try to get status from EC API
+      try {
+        const backendStatus = await ecApi.getVotingStatus();
+        setVotingStatus(prev => ({
+          ...prev,
+          isVotingOpen: !backendStatus.isVotingClosed,
+          isVotingClosed: backendStatus.isVotingClosed,
+        }));
+      } catch (fallbackError) {
+        console.error('Fallback voting status fetch also failed:', fallbackError);
+      }
     } finally {
       setIsLoading(false);
     }

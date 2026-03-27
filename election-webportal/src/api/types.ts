@@ -179,6 +179,7 @@ export interface DeclareResultsWinner {
   number: number;
   party_name: string;
   party_logo_url: string;
+  image_url: string;
   vote_count: number;
 }
 

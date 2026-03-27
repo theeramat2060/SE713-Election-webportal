@@ -42,14 +42,23 @@ interface DistrictProgress {
 
 const ECBallotPage: React.FC = () => {
   const { user } = useAuth();
-  const { isVotingClosed, closedAt, closeVoting, openVoting } = useVoting();
+  const { isVotingClosed, closedAt, closeVoting, openVoting, refreshStatus } = useVoting();
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [districts, setDistricts] = useState<DistrictProgress[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState<ElectionStats | null>(null);
+  const [constituencyData, setConstituencyData] = useState<any[]>([]);
 
   const canCloseVote = user?.role === 'ec' && hasPermission(user.role, 'close_vote') || user?.role === 'admin';
+  
+  // Determine actual voting status based on fetched data
+  // If all constituencies are closed, the system is closed
+  const actualVotingClosed = constituencyData.length > 0 && 
+    constituencyData.every(c => c.is_closed === true);
+  
+  // Use the more reliable actualVotingClosed if we have data, otherwise fall back to context
+  const displayVotingClosed = constituencyData.length > 0 ? actualVotingClosed : isVotingClosed;
 
   const fetchStats = async () => {
     try {
@@ -63,6 +72,7 @@ const ECBallotPage: React.FC = () => {
   const fetchDistricts = async () => {
     try {
       const data = await constituenciesApi.getAll();
+      setConstituencyData(data); // Store raw constituency data
       
       const mapped: DistrictProgress[] = data.map(c => {
         const turnoutNum = c.is_closed ? 100 : Math.floor(Math.random() * 90);
@@ -105,9 +115,16 @@ const ECBallotPage: React.FC = () => {
         closedAt: new Date().toISOString(),
       });
 
-      closeVoting(user?.fullName || 'EC Official');
       setIsCloseModalOpen(false);
+      
+      // Wait to ensure backend state is persisted
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Fetch fresh data
       await fetchData();
+      
+      // Refresh voting status from backend state (this is the source of truth)
+      await refreshStatus();
     } catch (error) {
       console.error('Error closing voting:', error);
       alert('เกิดข้อผิดพลาดในการปิดการลงคะแนน กรุณาลองใหม่');
@@ -127,8 +144,14 @@ const ECBallotPage: React.FC = () => {
         closedAt: new Date().toISOString(),
       });
 
-      openVoting();
+      // Wait to ensure backend state is persisted
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Fetch fresh data
       await fetchData();
+      
+      // Refresh voting status from backend state (this is the source of truth)
+      await refreshStatus();
     } catch (error) {
       console.error('Error reopening voting:', error);
       alert('เกิดข้อผิดพลาดในการเปิดการลงคะแนน กรุณาลองใหม่');
@@ -173,7 +196,7 @@ const ECBallotPage: React.FC = () => {
             label="อัตราผู้มาใช้สิทธิ" 
             value={stats ? `${stats.turnoutPercentage}%` : '...'} 
             icon={<TrendingUp className="text-status-success" />} 
-            trend={!isVotingClosed ? "+2.4% จากชั่วโมงที่แล้ว" : "สรุปผลการลงคะแนน"}
+            trend={!displayVotingClosed ? "+2.4% จากชั่วโมงที่แล้ว" : "สรุปผลการลงคะแนน"}
             subValue={
               <div className="w-full bg-gray-100 h-1 rounded-full mt-2 overflow-hidden">
                 <div className="bg-status-success h-full" style={{ width: stats ? `${stats.turnoutPercentage}%` : '0%' }} />
@@ -195,13 +218,13 @@ const ECBallotPage: React.FC = () => {
         </div>
 
         {/* Central Control Panel */}
-        <div className={`bg-white rounded-2xl border-2 overflow-hidden shadow-elevation transition-all duration-500 ${isVotingClosed ? 'border-red-200' : 'border-authority/20'}`}>
-          <div className={`p-4 border-b flex items-center justify-between ${isVotingClosed ? 'bg-red-50 border-red-100' : 'bg-authority/5 border-authority/10'}`}>
+        <div className={`bg-white rounded-2xl border-2 overflow-hidden shadow-elevation transition-all duration-500 ${displayVotingClosed ? 'border-red-200' : 'border-authority/20'}`}>
+          <div className={`p-4 border-b flex items-center justify-between ${displayVotingClosed ? 'bg-red-50 border-red-100' : 'bg-authority/5 border-authority/10'}`}>
             <div className="flex items-center gap-2">
-              <Activity size={20} className={isVotingClosed ? 'text-red-600' : 'text-authority'} />
+              <Activity size={20} className={displayVotingClosed ? 'text-red-600' : 'text-authority'} />
               <h2 className="font-bold text-text-primary uppercase tracking-tight">System Operational Status</h2>
             </div>
-            {isVotingClosed ? (
+            {displayVotingClosed ? (
               <Badge variant="error" className="animate-pulse">CLOSED</Badge>
             ) : (
               <Badge variant="success">LIVE</Badge>
@@ -210,13 +233,13 @@ const ECBallotPage: React.FC = () => {
           
           <div className="p-8 flex flex-col lg:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-6">
-              <div className={`p-6 rounded-3xl transition-all duration-500 ${!isVotingClosed ? 'bg-status-success/10 text-status-success shadow-inner' : 'bg-status-error/10 text-status-error shadow-inner'}`}>
-                {!isVotingClosed ? <Unlock size={48} /> : <Lock size={48} />}
+              <div className={`p-6 rounded-3xl transition-all duration-500 ${!displayVotingClosed ? 'bg-status-success/10 text-status-success shadow-inner' : 'bg-status-error/10 text-status-error shadow-inner'}`}>
+                {!displayVotingClosed ? <Unlock size={48} /> : <Lock size={48} />}
               </div>
               <div>
                 <p className="text-xs font-bold text-text-secondary uppercase mb-1">Voting Status</p>
-                <p className={`text-4xl font-black ${!isVotingClosed ? 'text-status-success' : 'text-status-error'}`}>
-                  {!isVotingClosed ? 'OPEN' : 'TERMINATED'}
+                <p className={`text-4xl font-black ${!displayVotingClosed ? 'text-status-success' : 'text-status-error'}`}>
+                  {!displayVotingClosed ? 'OPEN' : 'TERMINATED'}
                 </p>
                 {closedAt && (
                   <p className="text-xs text-red-600 mt-1 font-medium flex items-center gap-1">
@@ -228,7 +251,7 @@ const ECBallotPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-3 w-full lg:w-auto">
-              {!isVotingClosed ? (
+              {!displayVotingClosed ? (
                 <Button 
                   variant="danger" 
                   size="lg"
