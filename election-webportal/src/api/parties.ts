@@ -50,6 +50,17 @@ export const partiesApi = {
   },
 
   /**
+   * Get detailed election results per constituency
+   * GET /api/public/results
+   */
+  getResults: async (): Promise<ConstituencyWinner[]> => {
+    const { data } = await apiClient.get<ApiResponse<ConstituencyWinner[]>>(
+      '/public/results',
+    );
+    return data.data ?? [];
+  },
+
+  /**
    * Create a new party — POST /api/ec/create-party
    * Requires EC role (Bearer token).
    */

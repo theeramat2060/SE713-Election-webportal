@@ -202,6 +202,16 @@ const VotePage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Abstain Option Banner */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">ℹ️</span>
+                  <p className="text-sm font-medium text-blue-900">
+                    💡 หากท่านไม่ต้องการลงคะแนนให้ใครสามารถเลือก "ไม่ประสงค์ลงคะแนน" ด้านล่าง
+                  </p>
+                </div>
+              </div>
+
               {isLoading ? (
                 <div className="py-20 text-center text-text-secondary">กำลังโหลดรายชื่อผู้สมัคร...</div>
               ) : (
@@ -226,9 +236,14 @@ const VotePage: React.FC = () => {
                         <div className="p-6">
                           <div className="flex items-center gap-4 mb-6">
                             <div className="text-4xl font-bold text-democracy opacity-20">#{candidate.number}</div>
-                            <div className="flex-1 w-24 h-24 bg-surface-soft rounded-full flex items-center justify-center overflow-hidden border border-surface-border group-hover:scale-105 transition-transform">
+                            <div className="flex-1 w-24 sm:w-28 md:w-32 lg:w-40 aspect-[3/4] bg-surface-soft rounded-lg flex items-center justify-center overflow-hidden border border-surface-border group-hover:scale-105 transition-transform">
                               {candidate.image_url ? (
-                                 <img src={candidate.image_url} alt={candidate.first_name} className="w-full h-full object-cover" />
+                                 <img 
+                                   src={candidate.image_url} 
+                                   alt={candidate.first_name} 
+                                   className="w-full h-full object-cover"
+                                   loading="lazy"
+                                 />
                               ) : (
                                  <span className="text-5xl">👨‍💼</span>
                               )}
@@ -262,28 +277,28 @@ const VotePage: React.FC = () => {
                   <div 
                     onClick={() => !isConstituencyVotingClosed && setSelectedCandidate('abstain')}
                     className={`
-                      card transition-all relative overflow-hidden group border-dashed
+                      card transition-all relative overflow-hidden group border-2
                       ${isConstituencyVotingClosed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                      ${selectedCandidate === 'abstain' ? 'ring-2 ring-text-secondary border-text-secondary bg-surface-soft' : isConstituencyVotingClosed ? 'bg-surface-soft/50' : 'hover:border-text-secondary/30 bg-surface-soft/50'}
+                      ${selectedCandidate === 'abstain' ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 shadow-lg shadow-blue-200' : isConstituencyVotingClosed ? 'bg-surface-soft/50 border-surface-border' : 'hover:border-blue-400 bg-blue-50 border-blue-200 hover:shadow-md hover:shadow-blue-100'}
                     `}
                   >
                     {selectedCandidate === 'abstain' && (
-                      <div className="absolute top-2 right-2 bg-text-secondary text-white rounded-full p-1 z-10">
+                      <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10">
                         <Check className="w-4 h-4" />
                       </div>
                     )}
                     
                     <div className="p-6">
                       <div className="flex items-center gap-4 mb-6">
-                        <div className="text-4xl font-bold text-text-secondary opacity-10">00</div>
-                        <div className="flex-1 w-24 h-24 bg-white rounded-full flex items-center justify-center text-5xl group-hover:scale-105 transition-transform border border-surface-border">
+                        <div className="text-4xl font-bold text-blue-300 opacity-30">--</div>
+                        <div className="flex-1 w-24 sm:w-28 md:w-32 lg:w-40 aspect-[3/4] bg-white rounded-lg flex items-center justify-center text-5xl group-hover:scale-105 transition-transform border-2 border-blue-200">
                           🚫
                         </div>
                       </div>
                       
                       <div className="text-center">
-                        <h3 className="text-lg font-bold mb-1">ไม่ประสงค์ลงคะแนน</h3>
-                        <div className="flex items-center justify-center gap-1.5 text-text-secondary text-sm italic">
+                        <h3 className="text-lg font-bold mb-1 text-blue-900">ไม่ประสงค์ลงคะแนน</h3>
+                        <div className="flex items-center justify-center gap-1.5 text-blue-700 text-sm italic font-medium">
                           <span>Abstain / No Vote</span>
                         </div>
                       </div>
@@ -291,9 +306,9 @@ const VotePage: React.FC = () => {
 
                     <div className={`
                       py-3 text-center text-sm font-semibold transition-colors
-                      ${selectedCandidate === 'abstain' ? 'bg-text-secondary text-white' : 'bg-white text-text-secondary group-hover:bg-text-secondary group-hover:text-white'}
+                      ${selectedCandidate === 'abstain' ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-900 group-hover:bg-blue-400 group-hover:text-white'}
                     `}>
-                      {selectedCandidate === 'abstain' ? 'เลือกแล้ว' : 'ยืนยันไม่ลงคะแนนให้ใคร'}
+                      {selectedCandidate === 'abstain' ? 'เลือกแล้ว ✓' : 'คลิกเพื่อเลือก'}
                     </div>
                   </div>
                 </div>

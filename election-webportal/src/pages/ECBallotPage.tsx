@@ -62,44 +62,63 @@ const ECBallotPage: React.FC = () => {
 
   const fetchStats = async () => {
     try {
+      console.log('📊 Fetching election stats...');
       const data = await ecApi.getElectionStats();
       setStats(data);
+      console.log('✅ Election stats fetched');
     } catch (error) {
-      console.error('Failed to fetch election stats:', error);
+      console.error('❌ Failed to fetch election stats:', error);
+      throw error; // Re-throw to propagate error
     }
   };
 
   const fetchDistricts = async () => {
     try {
-      const data = await constituenciesApi.getAll();
-      setConstituencyData(data); // Store raw constituency data
+      console.log('🗳️  Fetching ballot statistics...');
+      // Use the new ballot statistics endpoint instead of mocking data
+      const ballotStats = await ecApi.getBallotStatistics();
+      console.log(`✅ Ballot statistics fetched (${ballotStats.length} districts)`);
       
-      const mapped: DistrictProgress[] = data.map(c => {
-        const turnoutNum = c.is_closed ? 100 : Math.floor(Math.random() * 90);
-        const total = 15000 + Math.floor(Math.random() * 5000);
-        return {
-          id: c.id,
-          name: `${c.province} เขต ${c.district_number}`,
-          province: c.province,
-          district_number: c.district_number,
-          progress: turnoutNum,
-          status: c.is_closed ? 'Complete' : (turnoutNum > 0 ? 'Reporting' : 'Pending'),
-          ballotsTotal: total,
-          ballotsCast: Math.floor(total * (turnoutNum / 100)),
-          lastUpdated: '2 นาทีที่แล้ว'
-        };
-      });
+      console.log('🗺️  Fetching constituency data...');
+      // Store raw constituency data for voting status check
+      const data = await constituenciesApi.getAll();
+      setConstituencyData(data);
+      console.log(`✅ Constituency data fetched (${data.length} constituencies)`);
+      
+      // Map ballot statistics to district progress format
+      console.log('🔄 Mapping ballot data to UI format...');
+      const mapped: DistrictProgress[] = ballotStats.map((stat: any) => ({
+        id: stat.id,
+        name: stat.name,
+        province: stat.province,
+        district_number: stat.district_number,
+        progress: stat.progress,
+        status: stat.status,
+        ballotsTotal: stat.ballotsTotal,
+        ballotsCast: stat.ballotsCast,
+        lastUpdated: stat.lastUpdated || '2 นาทีที่แล้ว'
+      }));
       
       setDistricts(mapped);
+      console.log(`✅ Districts ready for display (${mapped.length} districts)`);
     } catch (error) {
-      console.error('Failed to fetch districts:', error);
+      console.error('❌ Failed to fetch districts:', error);
+      throw error; // Re-throw to propagate error
     }
   };
 
   const fetchData = async () => {
     setIsLoading(true);
-    await Promise.all([fetchDistricts(), fetchStats()]);
-    setIsLoading(false);
+    try {
+      console.log('🔄 Starting fetchData...');
+      await Promise.all([fetchDistricts(), fetchStats()]);
+      console.log('✅ All data fetched successfully');
+    } catch (error) {
+      console.error('❌ fetchData failed:', error);
+      throw error; // Re-throw to allow caller to handle
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -109,24 +128,37 @@ const ECBallotPage: React.FC = () => {
   const handleCloseVoting = async () => {
     try {
       setIsLoading(true);
+      console.log('🔒 Attempting to close voting...');
+      
+      console.log('📡 Calling updateVotingStatus API...');
       await ecApi.updateVotingStatus({
         action: 'close',
         closedBy: user?.fullName || 'EC Official',
         closedAt: new Date().toISOString(),
       });
+      console.log('✅ API call succeeded');
 
       setIsCloseModalOpen(false);
       
       // Wait to ensure backend state is persisted
+      console.log('⏳ Waiting for backend persistence...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Fetch fresh data
+      console.log('📊 Fetching ballot statistics...');
       await fetchData();
+      console.log('✅ Ballot statistics fetched');
       
       // Refresh voting status from backend state (this is the source of truth)
+      console.log('🔄 Refreshing voting status...');
       await refreshStatus();
+      console.log('✅ Voting status refreshed');
     } catch (error) {
-      console.error('Error closing voting:', error);
+      console.error('❌ Error in handleCloseVoting:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       alert('เกิดข้อผิดพลาดในการปิดการลงคะแนน กรุณาลองใหม่');
     } finally {
       setIsLoading(false);
@@ -138,22 +170,33 @@ const ECBallotPage: React.FC = () => {
     
     try {
       setIsLoading(true);
+      console.log('🔓 Attempting to open voting...');
+      
+      console.log('📡 Calling updateVotingStatus API...');
       await ecApi.updateVotingStatus({
         action: 'open',
-        closedBy: user?.fullName || 'EC Official',
-        closedAt: new Date().toISOString(),
       });
+      console.log('✅ API call succeeded');
 
       // Wait to ensure backend state is persisted
+      console.log('⏳ Waiting for backend persistence...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Fetch fresh data
+      console.log('📊 Fetching ballot statistics...');
       await fetchData();
+      console.log('✅ Ballot statistics fetched');
       
       // Refresh voting status from backend state (this is the source of truth)
+      console.log('🔄 Refreshing voting status...');
       await refreshStatus();
+      console.log('✅ Voting status refreshed');
     } catch (error) {
-      console.error('Error reopening voting:', error);
+      console.error('❌ Error in handleOpenVoting:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       alert('เกิดข้อผิดพลาดในการเปิดการลงคะแนน กรุณาลองใหม่');
     } finally {
       setIsLoading(false);

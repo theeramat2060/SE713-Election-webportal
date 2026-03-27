@@ -253,15 +253,18 @@ const ECCandidatesPage: React.FC = () => {
                       <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 text-text-secondary font-medium">{candidate.number}</td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <img src={candidate.image_url} alt={candidate.first_name} className="w-10 h-10 rounded-full border border-surface-border object-cover" />
-                            <span className="font-bold text-text-primary">{candidate.title}{candidate.first_name} {candidate.last_name}</span>
-                          </div>
+                          <span className="font-bold text-text-primary">{candidate.title}{candidate.first_name} {candidate.last_name}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <img src={candidate.party_logo_url} alt={candidate.party_name} className="w-5 h-5 object-contain rounded" />
+                              {candidate.party_logo_url && (
+                                <img 
+                                  src={candidate.party_logo_url} 
+                                  alt={candidate.party_name} 
+                                  className="w-6 h-6 rounded border border-surface-border object-contain"
+                                />
+                              )}
                               <p className="text-sm font-medium text-authority">{candidate.party_name}</p>
                             </div>
                             <p className="text-xs text-text-secondary">{candidate.province} เขต {candidate.district_number}</p>
@@ -355,12 +358,21 @@ const ECCandidatesPage: React.FC = () => {
         >
           <form onSubmit={handleEditSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input
-                label="คำนำหน้า"
-                value={editingCandidate.title}
-                onChange={(e) => setEditingCandidate({...editingCandidate, title: e.target.value})}
-                required
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-text-secondary block">คำนำหน้า</label>
+                <select 
+                  className="w-full h-12 px-4 rounded-lg border border-surface-border bg-white focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority text-sm"
+                  value={editingCandidate.title}
+                  onChange={(e) => setEditingCandidate({...editingCandidate, title: e.target.value})}
+                  required
+                >
+                  <option value="">-- เลือกคำนำหน้า --</option>
+                  <option value="Mr.">Mr. (นาย)</option>
+                  <option value="Mrs.">Mrs. (นาง)</option>
+                  <option value="Ms.">Ms. (นางสาว)</option>
+                  <option value="Dr.">Dr. (ด.ร.)</option>
+                </select>
+              </div>
               <Input
                 label="หมายเลขผู้สมัคร"
                 type="number"

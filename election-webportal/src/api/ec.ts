@@ -127,6 +127,17 @@ export const ecApi = {
   },
 
   /**
+   * Update an existing party — PUT /api/ec/update-party/:id
+   */
+  updateParty: async (id: number, formData: FormData): Promise<void> => {
+    await apiClient.put(`/ec/update-party/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  /**
    * Delete a party — DELETE /api/ec/delete-party/:id
    */
   deleteParty: async (id: number): Promise<void> => {
@@ -176,5 +187,15 @@ export const ecApi = {
     await apiClient.delete(`/ec/delete-candidate/${id}`, {
       data: { id }, // Backend expects id in body based on ecRoutes.ts
     });
+  },
+
+  /**
+   * Get ballot statistics by constituency — GET /api/ec/ballot-statistics
+   */
+  getBallotStatistics: async (): Promise<any[]> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>(
+      '/ec/ballot-statistics',
+    );
+    return data.data ?? [];
   },
 };

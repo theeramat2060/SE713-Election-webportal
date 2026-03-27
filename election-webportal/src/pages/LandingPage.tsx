@@ -1,13 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
 import { Button } from '../components/Button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Users, BarChart3, Clock } from 'lucide-react';
+import { Alert } from '../components/Alert';
+import { useVoting } from '../context/VotingContext';
 
 const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { isVotingClosed } = useVoting();
+  const [showAlert, setShowAlert] = useState(false);
+
+  const handleResultsClick = () => {
+    if (!isVotingClosed) {
+      setShowAlert(true);
+    } else {
+      navigate('/results');
+    }
+  };
+
   return (
     <BaseLayout role="public">
       <div className="flex flex-col gap-16 py-8">
+        {/* Alert for closed voting */}
+        {showAlert && (
+          <Alert
+            type="warning"
+            title="ยังไม่สามารถดูผลได้"
+            message="ผลการเลือกตั้งจะสามารถดูได้เมื่อ กกต. ประกาศปิดการลงคะแนนเสียงแล้วเท่านั้น"
+            onClose={() => setShowAlert(false)}
+          />
+        )}
+
         {/* Hero Section */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-democracy-light to-white p-8 md:p-16 border border-democracy/10">
           <div className="relative z-10 max-w-2xl">
@@ -22,9 +46,14 @@ const LandingPage: React.FC = () => {
               <Link to="/login">
                 <Button size="lg" className="px-8">เข้าสู่ระบบเพื่อลงคะแนน</Button>
               </Link>
-              <Link to="/results">
-                <Button variant="outline" size="lg" className="px-8">ดูผลการเลือกตั้ง</Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="px-8"
+                onClick={handleResultsClick}
+              >
+                ดูผลการเลือกตั้ง
+              </Button>
             </div>
           </div>
           <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none hidden lg:block translate-y-1/4 translate-x-1/4">

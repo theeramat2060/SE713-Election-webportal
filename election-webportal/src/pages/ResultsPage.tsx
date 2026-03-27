@@ -30,7 +30,7 @@ const ResultsPage: React.FC = () => {
       console.log(`🔄 Calling Results APIs (${logPrefix} call)...`);
       
       const [results, overview] = await Promise.all([
-        ecApi.declareResults(),
+        partiesApi.getResults(),
         partiesApi.getOverview()
       ]);
       
@@ -89,19 +89,28 @@ const ResultsPage: React.FC = () => {
   }, [isVotingClosed]);
 
   // Calculate overall statistics
-  const overallWinner = realResults.length > 0 ? 
-    realResults.reduce((prev, current) => 
-      current.winner.vote_count > prev.winner.vote_count ? current : prev
-    ) : null;
+  const overallWinner = (realResults && realResults.length > 0) ? 
+    realResults.reduce((prev, current) => {
+      const prevVotes = prev?.winner?.vote_count ?? 0;
+      const currentVotes = current?.winner?.vote_count ?? 0;
+      return currentVotes > prevVotes ? current : prev;
+    }) : null;
 
-  const totalVotes = realResults.reduce((sum, result) => sum + result.total_votes, 0);
+  const totalVotes = (realResults || []).reduce((sum, result) => sum + (result?.total_votes || 0), 0);
 
-  const filteredResults = realResults.filter(r => 
-    r.province.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.winner.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.winner.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.winner.party_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredResults = (realResults || []).filter(r => {
+    if (!r) return false;
+    const province = r.province?.toLowerCase() || "";
+    const firstName = r.winner?.first_name?.toLowerCase() || "";
+    const lastName = r.winner?.last_name?.toLowerCase() || "";
+    const partyName = r.winner?.party_name?.toLowerCase() || "";
+    const search = searchTerm.toLowerCase();
+    
+    return province.includes(search) || 
+           firstName.includes(search) ||
+           lastName.includes(search) ||
+           partyName.includes(search);
+  });
 
   // Winning party (party with most seats)
   const winningParty = partyStats?.parties && partyStats.parties.length > 0 

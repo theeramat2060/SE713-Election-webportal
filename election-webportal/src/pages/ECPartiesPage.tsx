@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
+import { Modal, ModalFooter } from '../components/Modal';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -60,6 +61,15 @@ const ECPartiesPage: React.FC = () => {
   const [pagination, setPagination] = useState<PartyPagination | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalStats, setTotalStats] = useState({ totalParties: 0, totalCandidates: 0 });
+  
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<Party | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPolicy, setEditPolicy] = useState("");
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+  const [editLogoPreview, setEditLogoPreview] = useState<string>("");
+  const [editLoading, setEditLoading] = useState(false);
 
   // Check EC Staff admin-level permissions for parties
   const partyPermissions = canManageResource(user?.role || 'voter', 'party');
@@ -100,6 +110,70 @@ const ECPartiesPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to delete party:', err);
       alert('ไม่สามารถลบพรรคการเมืองได้');
+    }
+  };
+
+  const handleEditClick = (party: Party) => {
+    setEditingParty(party);
+    setEditName(party.name);
+    setEditPolicy(party.policy);
+    setEditLogoPreview(party.logo_url);
+    setEditLogoFile(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    console.log('Logo file selected:', file?.name, file?.size, file?.type);
+    if (file) {
+      setEditLogoFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        console.log('FileReader loaded, preview length:', result?.length);
+        setEditLogoPreview(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editingParty || !editName || !editPolicy) {
+      alert('กรุณากรอกข้อมูลทั้งหมด');
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      const formData = new FormData();
+      formData.append('name', editName);
+      formData.append('policy', editPolicy);
+      
+      console.log('Updating party with:', {
+        id: editingParty.id,
+        name: editName,
+        hasLogoFile: !!editLogoFile,
+        logoFileName: editLogoFile?.name,
+        logoPreviewLength: editLogoPreview?.length,
+      });
+
+      if (editLogoFile) {
+        console.log('Appending new logo file to formData');
+        formData.append('logo', editLogoFile);
+      } else {
+        console.log('Using existing logo URL:', editLogoPreview);
+        formData.append('logo_url', editLogoPreview);
+      }
+
+      await ecApi.updateParty(editingParty.id, formData);
+      setIsEditModalOpen(false);
+      fetchParties(currentPage);
+      alert('แก้ไขพรรคการเมืองสำเร็จ');
+    } catch (err) {
+      console.error('Failed to update party:', err);
+      alert('ไม่สามารถแก้ไขพรรคการเมืองได้');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -222,7 +296,11 @@ const ECPartiesPage: React.FC = () => {
                           <Badge variant="success">Active</Badge>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          <button className="p-2 text-text-secondary hover:text-authority transition-colors">
+                          <button
+                             onClick={() => handleEditClick(party)}
+                             className="p-2 text-text-secondary hover:text-authority transition-colors"
+                             title="แก้ไข"
+                           >
                             <Edit2 size={18} />
                           </button>
                           <button 
@@ -278,6 +356,86 @@ const ECPartiesPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Edit Party Modal */}
+      {editingParty && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="แก้ไขพรรคการเมือง"
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4">
+            {/* Party Name */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                ชื่อพรรค
+              </label>
+              <Input
+                placeholder="ชื่อพรรค"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            {/* Party Policy */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                นโยบาย
+              </label>
+              <textarea
+                placeholder="นโยบายของพรรค"
+                value={editPolicy}
+                onChange={(e) => setEditPolicy(e.target.value)}
+                className="w-full px-4 py-2 border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-authority text-sm"
+                rows={4}
+              />
+            </div>
+
+            {/* Logo Preview */}
+            {editLogoPreview && (
+              <div className="flex justify-center">
+                <img
+                  src={editLogoPreview}
+                  alt="Logo Preview"
+                  className="h-20 w-20 rounded border border-surface-border object-contain"
+                />
+              </div>
+            )}
+
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                โลโก้พรรค (ไม่บังคับ)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="w-full px-4 py-2 border border-surface-border rounded-lg text-sm"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <ModalFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={editLoading}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                variant="authority"
+                onClick={handleEditSave}
+                disabled={editLoading}
+              >
+                {editLoading ? 'กำลังบันทึก...' : 'บันทึก'}
+              </Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
     </BaseLayout>
   );
 };
