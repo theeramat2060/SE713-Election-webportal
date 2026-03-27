@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { ApiResponse, Party, PartyDetails, PartyOverview, CreatePartyPayload, DeclareResultsResponse } from './types';
+import type { ApiResponse, Party, PartyDetails, PartyOverview, CreatePartyPayload, DeclareResultsResponse, ConstituencyWinner } from './types';
 
 export const partiesApi = {
   /**
