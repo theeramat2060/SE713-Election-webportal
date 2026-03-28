@@ -45,6 +45,7 @@ const AdminUsersPage: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'EC' | 'VOTER' | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Form states
@@ -131,11 +132,12 @@ const AdminUsersPage: React.FC = () => {
   };
 
   const handlePromoteUser = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || !selectedRole) return;
     try {
-      const response = await adminApi.changeUserRole(selectedUser.id, 'EC');
+      const response = await adminApi.changeUserRole(selectedUser.id, selectedRole);
       if (response.success) {
         setIsPromoteModalOpen(false);
+        setSelectedRole(null);
         await fetchUsers();
         setSelectedUser(null);
       } else {
@@ -345,11 +347,11 @@ const AdminUsersPage: React.FC = () => {
                             title="แก้ไขข้อมูล">
                             <Edit size={18} />
                           </button>
-                          {user.role === 'VOTER' && (
+                          {(user.role === 'VOTER' || user.role === 'EC') && (
                             <button 
-                              onClick={() => { setSelectedUser(user); setIsPromoteModalOpen(true); }}
+                              onClick={() => { setSelectedUser(user); setSelectedRole(user.role === 'VOTER' ? 'EC' : 'VOTER'); setIsPromoteModalOpen(true); }}
                               className="p-2 text-text-secondary hover:text-success hover:bg-green-50 rounded-lg transition-all" 
-                              title="เลื่อนสถานะเป็น กกต.">
+                              title={user.role === 'VOTER' ? 'เลื่อนสถานะเป็น กกต.' : 'ลดสถานะเป็น Voter'}>
                               <ShieldCheck size={18} />
                             </button>
                           )}
@@ -515,27 +517,48 @@ const AdminUsersPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Promote/Demote User Modal */}
       {selectedUser && (
         <Modal
           isOpen={isPromoteModalOpen}
-          onClose={() => { setIsPromoteModalOpen(false); setSelectedUser(null); }}
-          title="ยืนยันการเลื่อนสถานะ"
-          maxWidth="max-w-sm"
+          onClose={() => { setIsPromoteModalOpen(false); setSelectedUser(null); setSelectedRole(null); }}
+          title={selectedUser.role === 'VOTER' ? "เลื่อนสถานะผู้ใช้" : "ลดสถานะผู้ใช้"}
+          maxWidth="max-w-md"
         >
           <div className="space-y-4">
             <div className="flex gap-3">
               <ShieldCheck className="text-success flex-shrink-0" size={24} />
               <div>
-                <p className="font-bold text-text-primary">เลื่อนสถานะผู้ใช้เป็น กกต.</p>
+                <p className="font-bold text-text-primary">
+                  {selectedUser.role === 'VOTER' 
+                    ? 'เลื่อนสถานะผู้ใช้เป็น กกต.'
+                    : 'ลดสถานะผู้ใช้เป็น Voter'}
+                </p>
                 <p className="text-text-secondary text-sm">
-                  คุณแน่ใจหรือว่าต้องการเลื่อนสถานะ {selectedUser.firstName} {selectedUser.lastName} ให้เป็น กกต. (Electoral Commission)?
+                  {selectedUser.role === 'VOTER'
+                    ? `เลื่อนสถานะ ${selectedUser.firstName} ${selectedUser.lastName} จาก Voter → กกต. (Electoral Commission)?`
+                    : `ลดสถานะ ${selectedUser.firstName} ${selectedUser.lastName} จาก กกต. → Voter?`}
                 </p>
               </div>
             </div>
+            
+            {selectedUser.role === 'VOTER' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+                <p className="font-semibold">Voter → เจ้าหน้าที่การเลือกตั้ง (กกต.)</p>
+              </div>
+            )}
+            
+            {selectedUser.role === 'EC' && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-900">
+                <p className="font-semibold">เจ้าหน้าที่การเลือกตั้ง (กกต.) → Voter</p>
+              </div>
+            )}
+            
             <ModalFooter>
-              <Button variant="outline" onClick={() => { setIsPromoteModalOpen(false); setSelectedUser(null); }}>ยกเลิก</Button>
-              <Button variant="authority" onClick={handlePromoteUser}>ยืนยันการเลื่อนสถานะ</Button>
+              <Button variant="outline" onClick={() => { setIsPromoteModalOpen(false); setSelectedUser(null); setSelectedRole(null); }}>ยกเลิก</Button>
+              <Button variant="authority" onClick={handlePromoteUser}>
+                {selectedUser.role === 'VOTER' ? 'เลื่อนสถานะ' : 'ลดสถานะ'}
+              </Button>
             </ModalFooter>
           </div>
         </Modal>
