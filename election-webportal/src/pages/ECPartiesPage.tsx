@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { canManageResource } from '../utils/permissions';
 import { ecApi, PartyPagination } from '../api/ec';
 import { partiesApi } from '../api/parties';
+import { constituenciesApi } from '../api';
 import { 
   Plus, 
   Search, 
@@ -76,7 +77,7 @@ const ECPartiesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PartyPagination | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalStats, setTotalStats] = useState({ totalParties: 0, totalCandidates: 0 });
+  const [totalStats, setTotalStats] = useState({ totalParties: 0, totalCandidates: 0, totalConstituencies: 0 });
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -95,6 +96,19 @@ const ECPartiesPage: React.FC = () => {
   // Check EC Staff admin-level permissions for parties
   const partyPermissions = canManageResource(user?.role || 'voter', 'party');
 
+  const fetchConstituencies = async () => {
+    try {
+      const constituencies = await constituenciesApi.getAll();
+      setTotalStats(prev => ({
+        ...prev,
+        totalConstituencies: constituencies.length
+      }));
+    } catch (err) {
+      console.error('Failed to fetch constituencies:', err);
+      // Don't fail the page if constituencies can't be loaded
+    }
+  };
+
   const fetchParties = async (page: number) => {
     try {
       setLoading(true);
@@ -103,11 +117,12 @@ const ECPartiesPage: React.FC = () => {
         setParties(res.data as unknown as Party[]);
         setPagination(res.pagination);
         
-        // Use overview to get some stats, or just use pagination total
-        setTotalStats({
+        // Update stats with parties and candidates
+        setTotalStats(prev => ({
+          ...prev,
           totalParties: res.pagination.total,
           totalCandidates: (res.data as unknown as Party[]).reduce((sum, p) => sum + (p.candidates_count || 0), 0)
-        });
+        }));
       }
     } catch (err) {
       console.error('Failed to fetch parties:', err);
@@ -119,6 +134,10 @@ const ECPartiesPage: React.FC = () => {
 
   useEffect(() => {
     fetchParties(currentPage);
+    // Fetch constituencies once on mount
+    if (currentPage === 1) {
+      fetchConstituencies();
+    }
   }, [currentPage]);
 
   const handleDelete = async (id: number) => {
@@ -262,7 +281,7 @@ const ECPartiesPage: React.FC = () => {
           />
           <StatsCard 
             label="เขตพื้นที่เลือกตั้ง" 
-            value="400" 
+            value={totalStats.totalConstituencies.toString()} 
             subtext="ทั่วประเทศ"
             icon={<MapIcon size={24} />} 
           />

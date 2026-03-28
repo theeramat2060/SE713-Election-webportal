@@ -20,23 +20,6 @@ export const voterApi = {
   },
 
   /**
-   * Check if the current voter has already voted — GET /api/voter/my-vote
-   * Returns vote record if voted, null if not voted yet.
-   */
-  getMyVote: async (): Promise<ApiResponse<VoteRecord | null>> => {
-    try {
-      const { data } = await apiClient.get<ApiResponse<VoteRecord | null>>('/voter/my-vote');
-      return data;
-    } catch (error: any) {
-      // If endpoint returns 404 or voter hasn't voted, return success with null
-      if (error.response?.status === 404 || error.response?.data?.data === null) {
-        return { success: true, data: null };
-      }
-      throw error;
-    }
-  },
-
-  /**
    * Cast a vote — POST /api/voter/vote
    * Requires Bearer token (Voter role).
    */

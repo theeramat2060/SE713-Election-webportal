@@ -31,14 +31,6 @@ const VotePage: React.FC = () => {
       }
 
       try {
-        // 0. Check if user has already voted
-        const myVoteRes = await voterApi.getMyVote();
-        if (myVoteRes.success && myVoteRes.data) {
-          setHasVoted(true);
-          setIsLoading(false);
-          return;
-        }
-
         // 1. Fetch Candidates (This endpoint returns candidates for the user's assigned constituency)
         const candRes = await electionApi.getCandidatesByUserId(user.id);
         

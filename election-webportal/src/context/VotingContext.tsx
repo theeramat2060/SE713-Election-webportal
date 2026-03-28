@@ -59,14 +59,6 @@ export const VotingProvider: React.FC<VotingProviderProps> = ({ children }) => {
         closedAt: allClosed && !prev.closedAt ? new Date() : prev.closedAt,
         closedBy: allClosed && !prev.closedBy ? 'System' : prev.closedBy,
       }));
-
-      // 3. Also fetch detailed status summary if available
-      try {
-        const summary = await electionApi.getElectionStatusSummary();
-        setStatusSummary(summary);
-      } catch (summaryError) {
-        console.warn('Could not fetch election status summary:', summaryError);
-      }
     } catch (error) {
       console.error('Could not sync voting status from constituencies:', error);
       // Fallback: try to get status from EC API
