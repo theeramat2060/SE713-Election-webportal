@@ -219,10 +219,6 @@ const ECBallotPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Download size={16} />
-              ส่งออกรายงาน
-            </Button>
             <Button variant="authority" size="sm" className="flex items-center gap-2">
               <ShieldCheck size={16} />
               ตรวจสอบความปลอดภัย

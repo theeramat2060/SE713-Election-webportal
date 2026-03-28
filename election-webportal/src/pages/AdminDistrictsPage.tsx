@@ -19,6 +19,28 @@ import {
 } from 'lucide-react';
 import { adminApi, District } from '../api/admin';
 
+const THAI_PROVINCES = [
+  'Amnat Charoen', 'Amur', 'Ang Thong', 'Anouvong', 'Ayutthaya',
+  'Bangkok', 'Bueng Kan', 'Buri Ram', 'Chachoengsao', 'Chaiyaphum',
+  'Chanthaburi', 'Chiang Mai', 'Chiang Rai', 'Chon Buri', 'Chumphon',
+  'Kamphaeng Phet', 'Kanchanaburi', 'Khon Kaen', 'Krabi',
+  'Lampang', 'Lamphun', 'Loei', 'Lopburi',
+  'Mae Hong Son', 'Maha Sarakham', 'Mukdahan',
+  'Nakhon Nayok', 'Nakhon Pathom', 'Nakhon Phanom', 'Nakhon Ratchasima',
+  'Nakhon Sawan', 'Nakhon Si Thammarat', 'Nan', 'Narathiwat',
+  'Nong Bua Lamphu', 'Nong Khai',
+  'Pathum Thani', 'Pattani', 'Petchabun', 'Petchaburi',
+  'Phatthalung', 'Phayao', 'Phichit', 'Phisanulok', 'Phrae', 'Phuket',
+  'Prachin Buri', 'Prachuap Khiri Khan',
+  'Ranong', 'Ratchaburi', 'Rayong', 'Roi Et',
+  'Sa Kaew', 'Sakon Nakhon', 'Samut Prakan', 'Samut Sakhon', 'Samut Songkhram',
+  'Saraburi', 'Satun', 'Sisaket', 'Songkhla', 'Sukhothai',
+  'Suphan Buri', 'Surat Thani', 'Surin',
+  'Tak', 'Trang', 'Trat',
+  'Ubon Ratchathani', 'Udon Thani', 'Uthai Thani',
+  'Yasothon'
+].sort();
+
 const AdminDistrictsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -76,8 +98,14 @@ const AdminDistrictsPage: React.FC = () => {
     }
 
     try {
-      // API endpoint for creating district (if available)
-      // For now, just refresh after form submit
+      const response = await adminApi.createDistrict(formData.province, formData.district_number);
+      
+      if (!response.success) {
+        const errorMsg = typeof response.error === 'string' ? response.error : 'ไม่สามารถสร้างเขตได้';
+        setError(errorMsg);
+        return;
+      }
+
       setIsAddModalOpen(false);
       setFormData({ province: '', district_number: 1 });
       setPage(1);
@@ -91,7 +119,14 @@ const AdminDistrictsPage: React.FC = () => {
   const handleDeleteDistrict = async () => {
     if (!selectedDistrict) return;
     try {
-      // API endpoint for deleting district (if available)
+      const response = await adminApi.deleteDistrict(selectedDistrict.province, selectedDistrict.district_number);
+      
+      if (!response.success) {
+        const errorMsg = typeof response.error === 'string' ? response.error : 'ไม่สามารถลบเขตได้';
+        setError(errorMsg);
+        return;
+      }
+
       setIsDeleteModalOpen(false);
       setSelectedDistrict(null);
       await fetchDistricts();
@@ -253,12 +288,21 @@ const AdminDistrictsPage: React.FC = () => {
         maxWidth="max-w-md"
       >
         <div className="space-y-4">
-          <Input 
-            placeholder="จังหวัด"
-            value={formData.province}
-            onChange={(e) => setFormData({...formData, province: e.target.value})}
-            className="text-sm"
-          />
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">จังหวัด</label>
+            <select 
+              value={formData.province}
+              onChange={(e) => setFormData({...formData, province: e.target.value})}
+              className="w-full px-3 py-2 border border-surface-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-authority"
+            >
+              <option value="">-- เลือกจังหวัด --</option>
+              {THAI_PROVINCES.map((province) => (
+                <option key={province} value={province}>
+                  {province}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <Input 
             type="number"

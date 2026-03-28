@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { adminApi, User, CreateUserPayload } from '../api/admin';
 
+const TITLES = ['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง'];
+
 const AdminUsersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'All' | 'VOTER' | 'EC' | 'ADMIN'>('All');
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,6 +44,7 @@ const AdminUsersPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Form states
@@ -83,8 +86,8 @@ const AdminUsersPage: React.FC = () => {
 
   // Handle add user
   const handleAddUser = async () => {
-    if (!formData.nationalId || !formData.password || !formData.firstName || !formData.lastName) {
-      setError('กรุณากรอกข้อมูลที่จำเป็นทั้งหมด');
+    if (!formData.nationalId || !formData.password || !formData.firstName || !formData.lastName || !formData.title) {
+      setError('กรุณากรอกข้อมูลที่จำเป็นทั้งหมด (รวมคำนำหน้า)');
       return;
     }
 
@@ -126,6 +129,71 @@ const AdminUsersPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     }
   };
+
+  const handlePromoteUser = async () => {
+    if (!selectedUser) return;
+    try {
+      const response = await adminApi.changeUserRole(selectedUser.id, 'EC');
+      if (response.success) {
+        setIsPromoteModalOpen(false);
+        await fetchUsers();
+        setSelectedUser(null);
+      } else {
+        const errorMsg = typeof response.error === 'string' ? response.error : 'ไม่สามารถเปลี่ยนบทบาทผู้ใช้ได้';
+        setError(errorMsg);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+    }
+  };
+
+  const resetFormData = () => {
+    setFormData({
+      nationalId: '', password: '', title: '', firstName: '',
+      lastName: '', address: '', role: 'VOTER'
+    });
+  };
+
+  const handleOpenEditModal = (user: User) => {
+    setSelectedUser(user);
+    setFormData({
+      nationalId: user.nationalId || '',
+      password: '',
+      title: user.title || '',
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      address: user.address || '',
+      role: user.role as 'VOTER' | 'EC' | 'ADMIN',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser || !formData.firstName || !formData.lastName) {
+      setError('กรุณากรอกชื่อและนามสกุล');
+      return;
+    }
+
+    try {
+      const response = await adminApi.updateUser(selectedUser.id, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        address: formData.address,
+      });
+      if (response.success) {
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+        await fetchUsers();
+        resetFormData();
+      } else {
+        const errorMsg = typeof response.error === 'string' ? response.error : 'ไม่สามารถแก้ไขผู้ใช้ได้';
+        setError(errorMsg);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+    }
+  };
+
   const roleLabel = (role: string) => {
     const labels: Record<string, string> = {
       'VOTER': 'ผู้ลงคะแนน',
@@ -272,6 +340,20 @@ const AdminUsersPage: React.FC = () => {
                             <Eye size={18} />
                           </button>
                           <button 
+                            onClick={() => handleOpenEditModal(user)}
+                            className="p-2 text-text-secondary hover:text-authority hover:bg-blue-50 rounded-lg transition-all" 
+                            title="แก้ไขข้อมูล">
+                            <Edit size={18} />
+                          </button>
+                          {user.role === 'VOTER' && (
+                            <button 
+                              onClick={() => { setSelectedUser(user); setIsPromoteModalOpen(true); }}
+                              className="p-2 text-text-secondary hover:text-success hover:bg-green-50 rounded-lg transition-all" 
+                              title="เลื่อนสถานะเป็น กกต.">
+                              <ShieldCheck size={18} />
+                            </button>
+                          )}
+                          <button 
                             onClick={() => { setSelectedUser(user); setIsDeleteModalOpen(true); }}
                             className="p-2 text-text-secondary hover:text-status-error hover:bg-red-50 rounded-lg transition-all" 
                             title="ลบผู้ใช้">
@@ -330,18 +412,26 @@ const AdminUsersPage: React.FC = () => {
       {/* Add User Modal */}
       <Modal 
         isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => { setIsAddModalOpen(false); resetFormData(); }}
         title="เพิ่มผู้ใช้ใหม่"
         maxWidth="max-w-md"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <Input 
-              placeholder="คำนำหน้า"
+            <select 
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
-              className="text-sm"
-            />
+              className="px-3 py-2 border border-surface-border rounded-lg text-sm text-text-primary bg-white hover:border-text-secondary focus:outline-none focus:ring-1 focus:ring-authority"
+            >
+              <option value="" disabled>
+                เลือกคำนำหน้า
+              </option>
+              {TITLES.map((title) => (
+                <option key={title} value={title}>
+                  {title}
+                </option>
+              ))}
+            </select>
             <Input 
               placeholder="ชื่อ"
               value={formData.firstName}
@@ -378,18 +468,10 @@ const AdminUsersPage: React.FC = () => {
             className="text-sm"
           />
 
-          <select 
-            value={formData.role}
-            onChange={(e) => setFormData({...formData, role: e.target.value as 'VOTER' | 'EC' | 'ADMIN'})}
-            className="w-full px-3 py-2 border border-surface-border rounded-lg text-sm"
-          >
-            <option value="VOTER">ผู้ลงคะแนน</option>
-            <option value="EC">เจ้าหน้าที่การเลือกตั้ง</option>
-            <option value="ADMIN">ผู้ดูแลระบบ</option>
-          </select>
+        afti
 
           <ModalFooter>
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>ยกเลิก</Button>
+            <Button variant="outline" onClick={() => { setIsAddModalOpen(false); resetFormData(); }}>ยกเลิก</Button>
             <Button variant="authority" onClick={handleAddUser}>สร้างบัญชี</Button>
           </ModalFooter>
         </div>
@@ -435,8 +517,80 @@ const AdminUsersPage: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {selectedUser && (
-        <Modal 
-          isOpen={isDeleteModalOpen} 
+        <Modal
+          isOpen={isPromoteModalOpen}
+          onClose={() => { setIsPromoteModalOpen(false); setSelectedUser(null); }}
+          title="ยืนยันการเลื่อนสถานะ"
+          maxWidth="max-w-sm"
+        >
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <ShieldCheck className="text-success flex-shrink-0" size={24} />
+              <div>
+                <p className="font-bold text-text-primary">เลื่อนสถานะผู้ใช้เป็น กกต.</p>
+                <p className="text-text-secondary text-sm">
+                  คุณแน่ใจหรือว่าต้องการเลื่อนสถานะ {selectedUser.firstName} {selectedUser.lastName} ให้เป็น กกต. (Electoral Commission)?
+                </p>
+              </div>
+            </div>
+            <ModalFooter>
+              <Button variant="outline" onClick={() => { setIsPromoteModalOpen(false); setSelectedUser(null); }}>ยกเลิก</Button>
+              <Button variant="authority" onClick={handlePromoteUser}>ยืนยันการเลื่อนสถานะ</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Modal */}
+      {selectedUser && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => { setIsEditModalOpen(false); setSelectedUser(null); resetFormData(); }}
+          title="แก้ไขข้อมูลผู้ใช้"
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-text-secondary uppercase">ชื่อ</label>
+              <Input 
+                placeholder="ชื่อ"
+                value={formData.firstName}
+                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                className="text-sm mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-text-secondary uppercase">นามสกุล</label>
+              <Input 
+                placeholder="นามสกุล"
+                value={formData.lastName}
+                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                className="text-sm mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-text-secondary uppercase">ที่อยู่</label>
+              <Input 
+                placeholder="ที่อยู่"
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                className="text-sm mt-1"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setSelectedUser(null); resetFormData(); }}>ยกเลิก</Button>
+              <Button variant="authority" onClick={handleEditUser}>บันทึกการเปลี่ยนแปลง</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+
+      {selectedUser && (
+        <Modal
+          isOpen={isDeleteModalOpen}
           onClose={() => { setIsDeleteModalOpen(false); setSelectedUser(null); }}
           title="ยืนยันการลบ"
           maxWidth="max-w-sm"

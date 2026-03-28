@@ -123,6 +123,29 @@ export const adminApi = {
     return data;
   },
 
+  /**
+   * Create a new electoral district
+   * POST /api/admin/districts
+   */
+  createDistrict: async (province: string, district_number: number): Promise<ApiResponse<District>> => {
+    const { data } = await apiClient.post<ApiResponse<District>>(`/admin/districts`, {
+      province,
+      district_number,
+    });
+    return data;
+  },
+
+  /**
+   * Delete an electoral district
+   * DELETE /api/admin/districts
+   */
+  deleteDistrict: async (province: string, district_number: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/admin/districts`, {
+      data: { province, district_number },
+    });
+    return data;
+  },
+
   // ─────────────────────────────────────────────────────────────────────────
   // USER MANAGEMENT
   // ─────────────────────────────────────────────────────────────────────────
@@ -182,6 +205,15 @@ export const adminApi = {
    */
   deleteUser: async (id: string): Promise<ApiResponse<void>> => {
     const { data } = await apiClient.delete<ApiResponse<void>>(`/admin/users/${id}`);
+    return data;
+  },
+
+  /**
+   * Change user role (VOTER -> EC)
+   * PATCH /api/admin/users/:id/change-role
+   */
+  changeUserRole: async (id: string, role: 'VOTER' | 'EC'): Promise<ApiResponse<{ success: boolean }>> => {
+    const { data } = await apiClient.patch<ApiResponse<{ success: boolean }>>(`/admin/users/${id}/change-role`, { role });
     return data;
   },
 
