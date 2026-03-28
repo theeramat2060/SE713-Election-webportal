@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BaseLayout } from '../components/BaseLayout';
-import { ChevronDown, ChevronUp, Users, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users, FileText, ArrowRight, Loader2, Eye, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { partiesApi } from '../api/parties';
+import { candidatesApi } from '../api/candidates';
 import type { PartyDetails } from '../api/types';
+import type { CandidateDetails } from '../api/candidates';
 
 const PartiesPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -11,6 +13,8 @@ const PartiesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetails | null>(null);
+  const [candidateLoading, setCandidateLoading] = useState(false);
 
   useEffect(() => {
     const fetchAllPartiesData = async () => {
@@ -41,6 +45,20 @@ const PartiesPage: React.FC = () => {
 
   const toggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleViewCandidate = async (candidateId: number) => {
+    try {
+      setCandidateLoading(true);
+      const response = await candidatesApi.getById(candidateId);
+      if (response.data) {
+        setSelectedCandidate(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch candidate details:', err);
+    } finally {
+      setCandidateLoading(false);
+    }
   };
 
   // Determine the layout role based on authentication status
@@ -132,10 +150,14 @@ const PartiesPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {party.candidates && party.candidates.length > 0 ? (
                             party.candidates.map((candidate) => (
-                              <div key={candidate.id} className="p-3 bg-surface-soft rounded border border-surface-border flex flex-col gap-2">
+                              <button
+                                key={candidate.id}
+                                onClick={() => handleViewCandidate(candidate.id)}
+                                className="p-3 bg-surface-soft rounded border border-surface-border flex items-start gap-2 hover:border-democracy/50 hover:bg-democracy-light/5 transition-colors text-left group"
+                              >
                                 {/* Candidate Photo */}
-                                <div className="flex items-center gap-3">
-                                  <img src={candidate.image_url} alt={candidate.first_name} className="w-12 h-12 rounded-full object-cover border border-surface-border" />
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <img src={candidate.image_url} alt={candidate.first_name} className="w-12 h-12 rounded-full object-cover border border-surface-border flex-shrink-0" />
                                   <div className="flex-1 min-w-0">
                                     <span className="font-medium text-text-primary block truncate">
                                       {candidate.title}{candidate.first_name} {candidate.last_name}
@@ -145,7 +167,8 @@ const PartiesPage: React.FC = () => {
                                     </span>
                                   </div>
                                 </div>
-                              </div>
+                                <Eye size={16} className="text-text-secondary flex-shrink-0 group-hover:text-democracy transition-colors" />
+                              </button>
                             ))
                           ) : (
                             <p className="text-text-secondary italic col-span-2">ไม่มีข้อมูลผู้สมัคร</p>
@@ -160,6 +183,91 @@ const PartiesPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Candidate Detail Modal */}
+      {selectedCandidate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto">
+            {/* Close Button */}
+            <div className="sticky top-0 bg-white border-b border-surface-border p-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-text-primary">ข้อมูลผู้สมัคร</h2>
+              <button
+                onClick={() => setSelectedCandidate(null)}
+                className="text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {candidateLoading ? (
+              <div className="p-8 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-8 h-8 text-democracy animate-spin" />
+                <p className="text-text-secondary">กำลังโหลดข้อมูล...</p>
+              </div>
+            ) : (
+              <div className="p-6 space-y-6">
+                {/* Candidate Photo & Badge */}
+                <div className="text-center">
+                  <div className="relative inline-block mb-4">
+                    <img
+                      src={selectedCandidate.image_url}
+                      alt={selectedCandidate.first_name}
+                      className="w-32 h-32 rounded-full object-cover border-4 border-democracy/20"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-democracy text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg border-4 border-white">
+                      {selectedCandidate.number}
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-text-primary">
+                    {selectedCandidate.title}{selectedCandidate.first_name} {selectedCandidate.last_name}
+                  </h3>
+                </div>
+
+                {/* Basic Info */}
+                <div className="space-y-3 pb-4 border-b border-surface-border">
+                  <div>
+                    <p className="text-xs text-text-secondary uppercase tracking-wide">พรรค</p>
+                    <p className="font-semibold text-text-primary">{selectedCandidate.party_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-secondary uppercase tracking-wide">เขตเลือกตั้ง</p>
+                    <p className="font-semibold text-text-primary">
+                      {selectedCandidate.province} เขต {selectedCandidate.district_number}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {selectedCandidate.bio && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-text-primary">ประวัติ</h4>
+                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+                      {selectedCandidate.bio}
+                    </p>
+                  </div>
+                )}
+
+                {/* Policy */}
+                {selectedCandidate.policy && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-text-primary">นโยบาย</h4>
+                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+                      {selectedCandidate.policy}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setSelectedCandidate(null)}
+                  className="w-full py-2 bg-democracy text-white rounded font-semibold hover:bg-democracy-dark transition-colors"
+                >
+                  ปิด
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </BaseLayout>
   );
 };
