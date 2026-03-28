@@ -21,7 +21,9 @@ import {
   Shield,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  X
 } from 'lucide-react';
 
 interface Party {
@@ -30,6 +32,20 @@ interface Party {
   logo_url: string;
   policy: string;
   candidates_count: number;
+}
+
+interface PartyDetail {
+  id: number;
+  name: string;
+  logo_url: string;
+  policy: string;
+  candidates: Array<{
+    id: number;
+    title: string;
+    first_name: string;
+    last_name: string;
+    number: number;
+  }>;
 }
 
 interface StatsCardProps {
@@ -71,6 +87,11 @@ const ECPartiesPage: React.FC = () => {
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
   const [editLoading, setEditLoading] = useState(false);
 
+  // Detail Modal State
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedPartyDetail, setSelectedPartyDetail] = useState<PartyDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   // Check EC Staff admin-level permissions for parties
   const partyPermissions = canManageResource(user?.role || 'voter', 'party');
 
@@ -110,6 +131,20 @@ const ECPartiesPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to delete party:', err);
       alert('ไม่สามารถลบพรรคการเมืองได้');
+    }
+  };
+
+  const handleViewDetails = async (party: Party) => {
+    try {
+      setDetailLoading(true);
+      const details = await partiesApi.getById(party.id);
+      setSelectedPartyDetail(details);
+      setIsDetailModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch party details:', err);
+      alert('ไม่สามารถโหลดรายละเอียดพรรคได้');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -282,7 +317,9 @@ const ECPartiesPage: React.FC = () => {
                         <td className="px-6 py-4">
                           <img src={party.logo_url} alt={party.name} className="w-10 h-10 rounded border border-surface-border object-contain" />
                         </td>
-                        <td className="px-6 py-4 font-bold text-text-primary">{party.name}</td>
+                        <td className="px-6 py-4 font-bold text-text-primary cursor-pointer hover:text-authority transition-colors" onClick={() => handleViewDetails(party)}>
+                          {party.name}
+                        </td>
                         <td className="px-6 py-4 text-sm text-text-secondary hidden md:table-cell max-w-xs truncate">
                           {party.policy}
                         </td>
@@ -296,6 +333,13 @@ const ECPartiesPage: React.FC = () => {
                           <Badge variant="success">Active</Badge>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
+                          <button
+                             onClick={() => handleViewDetails(party)}
+                             className="p-2 text-text-secondary hover:text-democracy transition-colors"
+                             title="ดูรายละเอียด"
+                           >
+                            <Eye size={18} />
+                          </button>
                           <button
                              onClick={() => handleEditClick(party)}
                              className="p-2 text-text-secondary hover:text-authority transition-colors"
@@ -356,6 +400,77 @@ const ECPartiesPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Detail Party Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title=""
+        maxWidth="max-w-2xl"
+      >
+        {detailLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="w-10 h-10 text-authority animate-spin" />
+            <p className="text-text-secondary">กำลังโหลดรายละเอียด...</p>
+          </div>
+        ) : selectedPartyDetail ? (
+          <div className="space-y-6">
+            {/* Party Header */}
+            <div className="flex items-center gap-4 pb-4 border-b border-surface-border">
+              <img 
+                src={selectedPartyDetail.logo_url} 
+                alt={selectedPartyDetail.name}
+                className="w-16 h-16 rounded border border-surface-border object-contain"
+              />
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-text-primary">{selectedPartyDetail.name}</h2>
+                <p className="text-sm text-text-secondary mt-1">ผู้สมัคร: {selectedPartyDetail.candidates?.length || 0} คน</p>
+              </div>
+            </div>
+
+            {/* Party Policy */}
+            <div>
+              <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wide mb-2">นโยบาย</h3>
+              <p className="text-text-primary leading-relaxed">{selectedPartyDetail.policy}</p>
+            </div>
+
+            {/* Candidates List */}
+            <div>
+              <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wide mb-3">รายชื่อผู้สมัคร ({selectedPartyDetail.candidates?.length || 0} คน)</h3>
+              {selectedPartyDetail.candidates && selectedPartyDetail.candidates.length > 0 ? (
+                <div className="bg-surface-soft rounded-lg border border-surface-border divide-y divide-surface-border max-h-96 overflow-y-auto">
+                  {selectedPartyDetail.candidates.map((candidate, idx) => (
+                    <div key={candidate.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-sm text-authority border border-surface-border flex-shrink-0">
+                        {candidate.number}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-text-primary truncate">
+                          {candidate.title}{candidate.first_name} {candidate.last_name}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg p-8 text-center text-text-secondary">
+                  ไม่มีผู้สมัครในพรรคนี้
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <ModalFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDetailModalOpen(false)}
+              >
+                ปิด
+              </Button>
+            </ModalFooter>
+          </div>
+        ) : null}
+      </Modal>
 
       {/* Edit Party Modal */}
       {editingParty && (

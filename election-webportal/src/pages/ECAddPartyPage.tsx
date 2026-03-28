@@ -225,8 +225,7 @@ const ECAddPartyPage: React.FC = () => {
                     <div className="w-20 h-20 border border-surface-border rounded-lg overflow-hidden bg-surface-soft">
                       <img 
                         src={logoPreview} 
-                        alt="Logo Preview" 
-                        className="w-full h-full object-cover"
+                        alt="Logo Preview"
                       />
                     </div>
                     <div className="flex-1">

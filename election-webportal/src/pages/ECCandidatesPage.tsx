@@ -8,8 +8,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canManageResource } from '../utils/permissions';
 import { ecApi, CandidatePagination } from '../api/ec';
-import { partiesApi, constituenciesApi } from '../api';
+import { partiesApi, constituenciesApi, candidatesApi } from '../api';
 import type { Candidate, Party, Constituency } from '../api';
+import type { CandidateDetails } from '../api/candidates';
 import { 
   Plus, 
   Search, 
@@ -23,7 +24,10 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Upload
+  Upload,
+  Eye,
+  MapPin,
+  Award
 } from 'lucide-react';
 
 const ECCandidatesPage: React.FC = () => {
@@ -44,6 +48,11 @@ const ECCandidatesPage: React.FC = () => {
   const [parties, setParties] = useState<Party[]>([]);
   const [districts, setDistricts] = useState<Constituency[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Detail State
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedCandidateDetail, setSelectedCandidateDetail] = useState<CandidateDetails | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Check EC Staff admin-level permissions for candidates
   const candidatePermissions = canManageResource(user?.role || 'voter', 'candidate');
@@ -97,6 +106,22 @@ const ECCandidatesPage: React.FC = () => {
   const handleEditClick = (candidate: Candidate) => {
     setEditingCandidate(candidate);
     setIsEditModalOpen(true);
+  };
+
+  const handleViewDetails = async (candidate: Candidate) => {
+    try {
+      setDetailLoading(true);
+      const res = await candidatesApi.getById(candidate.id);
+      if (res.success && res.data) {
+        setSelectedCandidateDetail(res.data);
+        setIsDetailModalOpen(true);
+      }
+    } catch (err) {
+      console.error('Failed to fetch candidate details:', err);
+      alert('ไม่สามารถโหลดรายละเอียดผู้สมัครได้');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -278,6 +303,13 @@ const ECCandidatesPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleViewDetails(candidate)}
+                              className="p-2 text-text-secondary hover:text-democracy transition-colors" 
+                              title="ดูรายละเอียด"
+                            >
+                              <Eye size={18} />
+                            </button>
                             {candidatePermissions.update && (
                               <button 
                                 onClick={() => handleEditClick(candidate)}
@@ -452,8 +484,101 @@ const ECCandidatesPage: React.FC = () => {
           </form>
         </Modal>
       )}
+
+      {/* Detail Candidate Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title=""
+        maxWidth="max-w-2xl"
+      >
+        {detailLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="w-10 h-10 text-authority animate-spin" />
+            <p className="text-text-secondary">กำลังโหลดรายละเอียด...</p>
+          </div>
+        ) : selectedCandidateDetail ? (
+          <div className="space-y-6">
+            {/* Candidate Header */}
+            <div className="flex items-start gap-4 pb-4 border-b border-surface-border">
+              {selectedCandidateDetail.image_url ? (
+                <img 
+                  src={selectedCandidateDetail.image_url} 
+                  alt={selectedCandidateDetail.first_name}
+                  className="w-20 h-20 rounded-lg border border-surface-border object-cover"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-lg border border-surface-border bg-gray-100 flex items-center justify-center text-3xl">
+                  👤
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-bold text-authority bg-authority/10 px-2 py-1 rounded">
+                    หมายเลข {selectedCandidateDetail.number}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold text-text-primary">
+                  {selectedCandidateDetail.title}{selectedCandidateDetail.first_name} {selectedCandidateDetail.last_name}
+                </h2>
+                <p className="text-sm text-text-secondary mt-1 flex items-center gap-1">
+                  <Award size={14} className="text-authority" />
+                  {selectedCandidateDetail.party_name}
+                </p>
+                <p className="text-sm text-text-secondary mt-1 flex items-center gap-1">
+                  <MapPin size={14} className="text-democracy" />
+                  {selectedCandidateDetail.province} เขต {selectedCandidateDetail.district_number}
+                </p>
+              </div>
+            </div>
+
+                        {/* Vote Count */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-surface-soft rounded-lg border border-surface-border">
+                <p className="text-xs text-text-secondary font-bold uppercase mb-1">คะแนนเสียง</p>
+                <p className="text-2xl font-bold text-text-primary">{selectedCandidateDetail.vote_count || 0}</p>
+              </div>
+              <div className="p-4 bg-surface-soft rounded-lg border border-surface-border">
+                <p className="text-xs text-text-secondary font-bold uppercase mb-1">สถานะเขต</p>
+                <p className="text-sm font-bold text-text-primary flex items-center gap-1">
+                  {selectedCandidateDetail.is_closed ? (
+                    <>
+                      <CheckCircle2 size={14} className="text-green-600" />
+                      ปิดแล้ว
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} className="text-yellow-600" />
+                      ยังเปิด
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Bio/Policy */}
+            {selectedCandidateDetail.bio && (
+              <div>
+                <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wide mb-2">ข้อมูลเพิ่มเติม</h3>
+                <p className="text-text-primary leading-relaxed">
+                  {selectedCandidateDetail.bio}
+                </p>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <ModalFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDetailModalOpen(false)}
+              >
+                ปิด
+              </Button>
+            </ModalFooter>
+          </div>
+        ) : null}
+      </Modal>
     </BaseLayout>
   );
 };
-
 export default ECCandidatesPage;

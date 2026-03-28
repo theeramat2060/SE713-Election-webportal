@@ -39,6 +39,17 @@ export const partiesApi = {
   },
 
   /**
+   * Get all constituencies with candidates (always available, independent of voting status)
+   * GET /api/public/constituencies-with-candidates
+   */
+  getConstituenciesWithCandidates: async (): Promise<any[]> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>(
+      '/public/constituencies-with-candidates',
+    );
+    return data.data ?? [];
+  },
+
+  /**
    * Aggregated seat count per party (only from closed constituencies)
    * GET /api/public/party-overview
    */

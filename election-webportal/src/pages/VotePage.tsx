@@ -241,7 +241,6 @@ const VotePage: React.FC = () => {
                                  <img 
                                    src={candidate.image_url} 
                                    alt={candidate.first_name} 
-                                   className="w-full h-full object-cover"
                                    loading="lazy"
                                  />
                               ) : (

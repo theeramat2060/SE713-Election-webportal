@@ -219,7 +219,7 @@ const ECAddCandidatePage: React.FC = () => {
                 />
                 <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-card border border-surface-border group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden">
                   {previewUrl ? (
-                    <img src={previewUrl} className="w-full h-full object-cover" alt="preview" />
+                    <img src={previewUrl} alt="preview" />
                   ) : (
                     <UserPlus className="w-10 h-10 text-authority" />
                   )}

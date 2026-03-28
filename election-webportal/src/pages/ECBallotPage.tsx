@@ -20,7 +20,8 @@ import {
   Download,
   ShieldCheck,
   FileText,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useVoting } from '../context/VotingContext';
@@ -49,6 +50,9 @@ const ECBallotPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState<ElectionStats | null>(null);
   const [constituencyData, setConstituencyData] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('');
+  const itemsPerPage = 10;
 
   const canCloseVote = user?.role === 'ec' && hasPermission(user.role, 'close_vote') || user?.role === 'admin';
   
@@ -203,10 +207,30 @@ const ECBallotPage: React.FC = () => {
     }
   };
 
-  const filteredDistricts = districts.filter(d => 
+  const filteredDistricts = districts.filter(d =>
     d.province.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filteredDistricts.length / itemsPerPage);
+  const paginatedDistricts = filteredDistricts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+    setPageInput('');
+  };
+
+  const handlePageJump = () => {
+    const pageNum = parseInt(pageInput);
+    if (pageNum >= 1 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
+      setPageInput('');
+    }
+  };
 
   return (
     <BaseLayout role="ec">
@@ -337,7 +361,7 @@ const ECBallotPage: React.FC = () => {
                 placeholder="ค้นหาชื่อจังหวัด หรือเขตพื้นที่..."
                 className="w-full pl-10 pr-4 py-2 border border-surface-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-authority/20 focus:border-authority"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearch}
               />
             </div>
           </div>
@@ -355,7 +379,7 @@ const ECBallotPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-surface-border">
                 {filteredDistricts.length > 0 ? (
-                  filteredDistricts.map((district) => (
+                  paginatedDistricts.map((district) => (
                     <tr key={district.id} className="hover:bg-gray-50 transition-colors group">
                       <td className="px-6 py-4">
                         <p className="font-bold text-text-primary">{district.name}</p>
@@ -405,6 +429,67 @@ const ECBallotPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredDistricts.length > 0 && totalPages > 1 && (
+            <div className="p-6 border-t border-surface-border space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-text-secondary">
+                  แสดงรายการที่ {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredDistricts.length)} จาก {filteredDistricts.length} เขต
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => prev - 1)}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft size={16} />
+                      ก่อนหน้า
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      className="flex items-center gap-1"
+                    >
+                      ถัดไป
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-text-secondary font-medium">
+                    หน้า {currentPage} จาก {totalPages}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Page Jump Input */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-text-secondary">ไปที่หน้า:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={pageInput}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handlePageJump()}
+                  placeholder="ระบุหมายเลขหน้า"
+                  className="w-20 px-3 py-2 border border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handlePageJump}
+                  disabled={!pageInput || parseInt(pageInput) < 1 || parseInt(pageInput) > totalPages}
+                >
+                  ไป
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
